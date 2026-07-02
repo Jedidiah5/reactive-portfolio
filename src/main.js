@@ -533,13 +533,28 @@ let scrollTarget = 0;
 let scrollCurrent = 0;
 let modalOpen = false;
 
+// dev console handle: check scroll state from the browser console
+window.__enesi = { get scroll() { return { target: scrollTarget, current: scrollCurrent }; } };
+
 function clampScroll(v) {
   return THREE.MathUtils.clamp(v, 0, NUM_SECTIONS - 1);
 }
 
+// a panel (news clipping, modal body) should swallow the gesture only
+// while it can still scroll internally in that direction; otherwise the
+// gesture falls through and moves the world
+function panelEatsScroll(target, delta) {
+  const scroller = target.closest && target.closest('.ui-scroll');
+  if (!scroller) return false;
+  if (scroller.scrollHeight <= scroller.clientHeight + 2) return false;
+  const atTop = scroller.scrollTop <= 0;
+  const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+  return (delta > 0 && !atBottom) || (delta < 0 && !atTop);
+}
+
 window.addEventListener('wheel', (e) => {
   if (modalOpen) return;
-  if (e.target.closest && e.target.closest('.ui-scroll')) return;
+  if (panelEatsScroll(e.target, e.deltaY)) return;
   scrollTarget = clampScroll(scrollTarget + e.deltaY * 0.0016);
 }, { passive: true });
 
@@ -551,12 +566,12 @@ window.addEventListener('touchstart', (e) => {
 }, { passive: true });
 window.addEventListener('touchmove', (e) => {
   if (modalOpen || touchY === null) return;
-  if (e.target.closest && e.target.closest('.ui-scroll')) return;
   const y = e.touches[0].clientY;
   const dy = touchY - y;
+  touchY = y;
+  if (panelEatsScroll(e.target, dy)) return;
   touchMoved += Math.abs(dy);
   scrollTarget = clampScroll(scrollTarget + dy * 0.004);
-  touchY = y;
 }, { passive: true });
 
 // keyboard
@@ -587,7 +602,7 @@ function updateOverlays() {
     const d = Math.abs(scrollCurrent - i);
     const op = THREE.MathUtils.clamp(1 - d * 2.4, 0, 1);
     el.style.opacity = op.toFixed(3);
-    el.style.pointerEvents = op > 0.5 ? 'auto' : 'none';
+    el.classList.toggle('live', op > 0.5);
     el.style.transform = `translateY(${(scrollCurrent - i) * -30}px)`;
   });
   const active = Math.round(scrollCurrent);

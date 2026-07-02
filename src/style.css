@@ -159,7 +159,9 @@ html, body {
   padding: 4.5rem 1.2rem 3.5rem;
 }
 .section > * { pointer-events: none; }
-.section .ui-block, .section .ui-block * { pointer-events: auto; }
+/* only the visible (.live) section's interactive bits catch the pointer —
+   the section element itself never does, so taps reach the 3D canvas */
+.section.live .ui-block, .section.live .ui-block * { pointer-events: auto; }
 
 /* ---------- hero ---------- */
 .hero { text-align: center; position: relative; }
