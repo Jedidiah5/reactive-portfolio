@@ -14,65 +14,92 @@ const HL = 0xffd400;      // highlighter yellow
 const PAPER = 0xf4f1e8;   // paper background
 const INK = 0x2b2b2b;     // graphite
 
-/* ---------------- project data (from enesi-s-space.vercel.app) -------- */
+/* ---------------- project data (content spec, strongest first) -------- */
 const PROJECTS = [
   {
-    slug: 'enesis-space',
+    slug: 'cheerz',
     file: 'FILE_01',
-    title: "Enesi's Space",
-    short: "ENESI'S\nSPACE",
-    goal: 'Personal portfolio website — show experience, services, and projects in one fast, accessible site.',
-    role: 'Role: solo developer.',
-    stack: ['Next.js', 'React', 'TypeScript', 'TailwindCSS', 'Framer Motion'],
-    links: [
-      { label: 'LIVE ↗', url: 'https://enesi-s-space.vercel.app/' },
-      { label: 'CODE ↗', url: 'https://github.com/Enesi-s-Space/Enesi-s-Space.github.io' },
-    ],
+    title: 'Cheerz',
+    short: 'CHEERZ',
+    badge: '★ FLAGSHIP',
+    status: 'LIVE',
+    goal: 'AI-powered real-time multiplayer quiz platform — an AI generates questions on any topic and players compete live, with coin-based monetisation and a subscription pass.',
+    role: 'Role: sole builder — full stack, real-time multiplayer sync, AI question generation, monetisation; launched publicly.',
+    impact: '200+ visitors, 50+ users and paying customers within days of launch.',
+    stack: ['Next.js', 'TypeScript', 'Firebase', 'Gemini API', 'Vercel'],
+    links: [{ label: 'LIVE ↗', url: 'https://cheerz.fyi' }],
     hue: '#ffe34d',
   },
   {
-    slug: 'rest-api-dashboard',
+    slug: 'zonein',
     file: 'FILE_02',
-    title: 'REST API + Dashboard',
-    short: 'REST API\n+ DASH',
-    goal: 'A full-stack CRUD app with a documented API, persisted data, and a secure client dashboard.',
-    role: 'Role: backend (routes, validation, data layer) and frontend (auth, tables, responsive layout).',
-    stack: ['Node.js', 'TypeScript', 'Next.js', 'TailwindCSS', 'PostgreSQL'],
-    links: [{ label: 'CODE ↗', url: 'https://github.com/Jedidiah5' }],
+    title: 'ZoneIn',
+    short: 'ZONE\nIN',
+    badge: '★ VALIDATED',
+    status: 'LIVE PROTOTYPE',
+    goal: 'AI zone-intelligence app helping London gig drivers find the best places to work — AI and live data recommend high-demand zones on a map, behind a paywall.',
+    role: 'Role: sole builder. Interviewed 41 gig drivers in person before writing any code.',
+    impact: '37 of 41 drivers confirmed they would pay; built solo at a hackathon.',
+    stack: ['Next.js', 'TypeScript', 'Tailwind', 'Gemini API', 'MapLibre GL', 'Stripe'],
+    links: [{ label: 'LIVE ↗', url: 'https://zone-in-cyan.vercel.app' }],
+    hue: '#9ad7ff',
+  },
+  {
+    slug: 'urban-lens',
+    file: 'FILE_03',
+    title: 'Urban Lens',
+    short: 'URBAN\nLENS',
+    badge: '★ 2ND PLACE',
+    status: 'COMPLETE',
+    goal: "A 3D interactive globe comparing how different AIs 'feel' about 60 world cities — visualises LLM sentiment with a live Claude-powered chat panel to interrogate the bias per city.",
+    role: 'Role: front end, globe visualisation and the Claude analysis panel — team of three, teammates on Python NLP.',
+    impact: '2nd place — Middlesex MSc Data Science Hackathon 2026.',
+    stack: ['Next.js', 'Tailwind', 'Recharts', 'Claude API', 'Python'],
+    links: [
+      { label: 'LIVE ↗', url: 'https://treepy-taupe.vercel.app/' },
+      { label: 'CODE ↗', url: 'https://github.com/Jedidiah5/middlesexHackathon' },
+    ],
+    hue: '#ffb7c5',
+  },
+  {
+    slug: 'fly-intelligence',
+    file: 'FILE_04',
+    title: 'Fly Intelligence',
+    short: 'FLY\nINTEL',
+    status: 'COMPLETE',
+    goal: 'An AI operator co-pilot dashboard for a direct-to-consumer brand — a dark, editorial analytics dashboard surfacing insights from business data.',
+    role: 'Role: sole builder at the Wayflyer × Fin Hackathon.',
+    stack: ['Next.js', 'TypeScript', 'Tailwind', 'Gemini API', 'Python'],
+    links: [
+      { label: 'LIVE ↗', url: 'https://flyintelligence.vercel.app' },
+      { label: 'CODE ↗', url: 'https://github.com/Jedidiah5/Wayflyers_Visionaries_Hackathon' },
+    ],
     hue: '#cba6f7',
   },
   {
-    slug: 'capstone',
-    file: 'FILE_03',
-    title: 'Capstone Build',
-    short: 'CAPSTONE\nBUILD',
-    goal: 'End-to-end university IT system — deliver a scoped system that maps to degree outcomes.',
-    role: 'Role: full-stack ownership — architecture, implementation, and documentation.',
-    stack: ['Next.js', 'TypeScript', 'Node.js', 'Prisma', 'React'],
-    links: [{ label: 'CODE ↗', url: 'https://github.com/Jedidiah5' }],
-    hue: '#ff5d5d',
-  },
-  {
-    slug: 'integrations',
-    file: 'FILE_04',
-    title: 'Integration & Automation',
-    short: 'INTEGRATE\n& AUTOMATE',
-    goal: 'A service layer connecting external providers — email, storage, LLMs — with webhooks and observability.',
-    role: 'Role: API wiring, configuration, error handling.',
-    stack: ['TypeScript', 'Node.js', 'Vercel', 'TailwindCSS', 'Next.js'],
-    links: [{ label: 'CODE ↗', url: 'https://github.com/Jedidiah5' }],
-    hue: '#7df9aa',
-  },
-  {
-    slug: 'games',
+    slug: 'alter',
     file: 'FILE_05',
-    title: 'Interactive Games',
-    short: 'JS\nGAMES',
-    goal: 'Three JavaScript games built from scratch: Jumping Box, Color Matching, and Memory Cards.',
-    role: 'Role: everything — game loops, input, state, and the fun.',
-    stack: ['JavaScript', 'HTML5', 'CSS'],
+    title: 'ALTER',
+    short: 'ALTER',
+    status: 'HACKATHON BUILD',
+    goal: 'AI character agents on a shared stage — answer personality questions to generate Funko-Pop-style SVG avatars, watch the agents interact in real time, then judge if they felt real.',
+    role: "Role: built solo at Google London's A2A + Generative UI Hackathon; later revived with a teammate at the Vibe Hackathon.",
+    impact: 'Built solo at a Google London AI hackathon.',
+    stack: ['CopilotKit', 'React Three Fiber', 'Gemini 2.5 Flash', 'SVG avatars', 'Framer Motion'],
     links: [{ label: 'CODE ↗', url: 'https://github.com/Jedidiah5' }],
-    hue: '#9ad7ff',
+    hue: '#b9f18d',
+  },
+  {
+    slug: 'enesis-space',
+    file: 'FILE_06',
+    title: "Enesi's Space",
+    short: 'THIS\nSITE',
+    status: 'LIVE',
+    goal: "The site you're on — a sketchbook-themed 3D portfolio with a sticky-note wall and file-folder navigation.",
+    role: 'Role: designed and built solo.',
+    stack: ['Three.js', 'Vite', 'JavaScript'],
+    links: [{ label: 'CODE ↗', url: 'https://github.com/Jedidiah5/reactive-portfolio' }],
+    hue: '#ffd9a0',
   },
 ];
 
@@ -333,6 +360,20 @@ function folderFaceTexture(p, idx) {
   x.strokeStyle = '#2b2b2b';
   x.lineWidth = 4;
   x.beginPath(); x.arc(462, 44, 26, 0, Math.PI * 2); x.fill(); x.stroke();
+  // red-pen badge for the star projects
+  if (p.badge) {
+    x.save();
+    x.translate(96, 42);
+    x.rotate(-0.08);
+    x.font = '700 36px "Caveat"';
+    x.textAlign = 'center';
+    const bw = x.measureText(p.badge).width;
+    x.fillStyle = 'rgba(255,227,77,0.9)';
+    x.fillRect(-bw / 2 - 8, -18, bw + 16, 30);
+    x.fillStyle = '#e0501f';
+    x.fillText(p.badge, 0, 6);
+    x.restore();
+  }
   return canvasTexture(c);
 }
 
@@ -376,12 +417,12 @@ function layoutFolders() {
   const halfW = CAM_DIST * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
   if (narrow) {
     // 2 columns x 3 rows, sized from what actually fits on this phone
-    folderScale = THREE.MathUtils.clamp(halfW / 4.6, 0.45, 0.85);
+    folderScale = THREE.MathUtils.clamp(halfW / 4.8, 0.45, 0.8);
     const colX = halfW * 0.46;
     const posn = [
-      [-colX, 2.3], [colX, 2.3],
-      [-colX, -0.1], [colX, -0.1],
-      [0, -2.5],
+      [-colX, 2.5], [colX, 2.5],
+      [-colX, 0.1], [colX, 0.1],
+      [-colX, -2.3], [colX, -2.3],
     ];
     folders.forEach((f, i) => {
       f.position.set(posn[i][0], posn[i][1], 0);
@@ -391,7 +432,7 @@ function layoutFolders() {
     folderScale = 1;
     const posn = [
       [-4.3, 1.4], [0, 1.4], [4.3, 1.4],
-      [-2.15, -1.6], [2.15, -1.6],
+      [-4.3, -1.6], [0, -1.6], [4.3, -1.6],
     ];
     folders.forEach((f, i) => {
       f.position.set(posn[i][0], posn[i][1], 0);
@@ -812,10 +853,13 @@ function shotPlaceholder(p) {
 function openModal(i) {
   currentProject = i;
   const p = PROJECTS[i];
-  document.getElementById('modal-name').textContent = p.file;
+  document.getElementById('modal-name').textContent = `${p.file} — ${p.status}`;
   document.getElementById('modal-title').textContent = p.title;
   document.getElementById('modal-goal').textContent = p.goal;
   document.getElementById('modal-role').textContent = p.role;
+  const impactEl = document.getElementById('modal-impact');
+  impactEl.textContent = p.impact ? `✳ ${p.impact}` : '';
+  impactEl.style.display = p.impact ? '' : 'none';
   document.getElementById('modal-stack').innerHTML =
     p.stack.map((s) => `<span>${s}</span>`).join('');
   document.getElementById('modal-links').innerHTML =
