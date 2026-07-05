@@ -309,6 +309,18 @@ body {
 }
 .clipping-skills span:nth-child(odd) { background: var(--hl); }
 .clipping-skills span:nth-child(3n) { background: var(--hl2); }
+.cv-link {
+  display: inline-block;
+  margin-top: 0.9rem;
+  font-family: var(--font-note);
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--blue);
+  text-decoration: underline wavy rgba(36, 86, 214, 0.5) 2px;
+  text-underline-offset: 5px;
+  transform: rotate(-1deg);
+}
+.cv-link:hover { color: var(--red); }
 @media (min-width: 640px) {
   .clipping-cols { column-count: 2; column-gap: 1.4rem; }
   .clipping-cols .clipping-stats { column-span: all; }

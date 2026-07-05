@@ -404,6 +404,8 @@ function layoutFolders() {
 const WALL_KEY = 'enesi-wall-v1';
 const PEN_COLORS = ['#2b2b2b', '#2456d6', '#d63a2f', '#2e8b3a', '#7a3fd1'];
 const HL_COLORS = ['rgba(255,227,77,0.75)', 'rgba(185,241,141,0.75)', 'rgba(255,183,197,0.7)'];
+// every visitor gets their own handwriting
+const HAND_FONTS = ['"Caveat"', '"Patrick Hand"', '"Shadows Into Light"', '"Gochi Hand"'];
 let wallMesh, wallCanvas, wallTexture;
 
 function loadWallEntries() {
@@ -434,14 +436,21 @@ function hashStr(s) {
   return (h >>> 0) / 4294967295;
 }
 
-function penText(x, text, px, py, size, color, rot, hl) {
+function penText(x, text, px, py, size, color, rot, hl, maxW) {
   x.save();
   x.translate(px, py);
   x.rotate(rot);
-  x.font = `700 ${size}px "Caveat"`;
+  const font = HAND_FONTS[Math.floor(hashStr(text + 'font') * HAND_FONTS.length)];
+  x.font = `700 ${size}px ${font}`;
   x.textAlign = 'center';
   x.textBaseline = 'middle';
-  const w = x.measureText(text).width;
+  let w = x.measureText(text).width;
+  // shrink long names until they fit their patch of the page
+  while (maxW && w > maxW && size > 24) {
+    size *= 0.9;
+    x.font = `700 ${size}px ${font}`;
+    w = x.measureText(text).width;
+  }
   // highlighter swipe behind some names
   if (hl) {
     x.fillStyle = hl;
@@ -530,7 +539,7 @@ function drawWall() {
     const size = 62 + h2 * 40;
     const rot = (h1 - 0.5) * 0.22;
     const hl = h2 > 0.62 ? HL_COLORS[Math.floor(h1 * HL_COLORS.length)] : null;
-    penText(x, e.n, px, py, size, color, rot, hl);
+    penText(x, e.n, px, py, size, color, rot, hl, cellW * 1.06);
   });
   if (wallTexture) wallTexture.needsUpdate = true;
   const counter = document.getElementById('wall-count');
@@ -857,6 +866,8 @@ async function boot() {
       document.fonts.load('700 60px "Caveat"'),
       document.fonts.load('60px "Patrick Hand"'),
       document.fonts.load('700 60px "Cabin Sketch"'),
+      document.fonts.load('60px "Shadows Into Light"'),
+      document.fonts.load('60px "Gochi Hand"'),
     ]);
   } catch (e) { /* fonts blocked — fallbacks are fine */ }
 

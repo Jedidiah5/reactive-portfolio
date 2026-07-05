@@ -18,6 +18,12 @@ Deploy: push to GitHub and import into Vercel (framework preset: Vite). Zero con
 Drop PNGs into `public/shots/` named by slug (see `public/shots/README.txt`).
 They automatically replace the generated placeholders in the folder popups.
 
+## Your CV
+
+The "FULL CV ↗" button (contact section) and the "check out my full CV →"
+link (about card) both point to `/cv.pdf` — drop your CV into
+`public/cv.pdf` and they'll work. Until then they 404.
+
 ## Edit your info
 
 All project/profile content lives at the top of `src/main.js` in the `PROJECTS`
