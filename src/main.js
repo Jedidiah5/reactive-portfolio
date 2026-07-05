@@ -10,8 +10,9 @@ const SECTION_GAP = 26;          // world units between stops
 const CAM_DIST = 12;             // camera distance from each stop
 const NUM_SECTIONS = 5;
 
-const YELLOW = 0xf5c518;
-const BG = 0x0a0a0a;
+const HL = 0xffd400;      // highlighter yellow
+const PAPER = 0xf4f1e8;   // paper background
+const INK = 0x2b2b2b;     // graphite
 
 /* ---------------- project data (from enesi-s-space.vercel.app) -------- */
 const PROJECTS = [
@@ -27,7 +28,7 @@ const PROJECTS = [
       { label: 'LIVE ↗', url: 'https://enesi-s-space.vercel.app/' },
       { label: 'CODE ↗', url: 'https://github.com/Enesi-s-Space/Enesi-s-Space.github.io' },
     ],
-    hue: '#f5c518',
+    hue: '#ffe34d',
   },
   {
     slug: 'rest-api-dashboard',
@@ -76,14 +77,15 @@ const PROJECTS = [
 ];
 
 /* ---------------- renderer / scene / camera ---------------- */
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+// alpha canvas: the CSS graph-paper background shows through behind the 3D
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(BG);
+renderer.setClearColor(PAPER, 0);
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(BG, CAM_DIST + 4, CAM_DIST + 30);
+scene.fog = new THREE.Fog(PAPER, CAM_DIST + 4, CAM_DIST + 30);
 
 const camera = new THREE.PerspectiveCamera(
   55, window.innerWidth / window.innerHeight, 0.1, 200
@@ -121,11 +123,11 @@ function canvasTexture(c) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const m = new THREE.PointsMaterial({ color: 0x777777, size: 0.06, sizeAttenuation: true });
+  const m = new THREE.PointsMaterial({ color: 0xa39d8e, size: 0.05, sizeAttenuation: true });
   scene.add(new THREE.Points(g, m));
 }
 
-function asteriskTexture(color = '#f5c518') {
+function asteriskTexture(color = '#2b2b2b') {
   const c = makeCanvas(128, 128);
   const x = c.getContext('2d');
   x.translate(64, 64);
@@ -143,13 +145,14 @@ function asteriskTexture(color = '#f5c518') {
 }
 const asterisks = [];
 {
-  const tex = asteriskTexture();
-  const texW = asteriskTexture('#ffffff');
+  // graphite doodles with the occasional highlighter one
+  const tex = asteriskTexture('#2b2b2b');
+  const texW = asteriskTexture('#ffd400');
   for (let i = 0; i < 26; i++) {
     const mat = new THREE.SpriteMaterial({
-      map: Math.random() < 0.75 ? tex : texW,
+      map: Math.random() < 0.65 ? tex : texW,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.75,
     });
     const s = new THREE.Sprite(mat);
     const sec = Math.floor(Math.random() * NUM_SECTIONS);
@@ -170,43 +173,50 @@ const asterisks = [];
 
 /* ---------------- retro grid floor ---------------- */
 {
-  const grid = new THREE.GridHelper(240, 90, YELLOW, 0x2c2610);
+  const grid = new THREE.GridHelper(240, 90, 0x8fa6cf, 0xc7d2e6);
   grid.position.y = -5;
   grid.position.z = -SECTION_GAP * 2;
   grid.material.transparent = true;
-  grid.material.opacity = 0.5;
+  grid.material.opacity = 0.4;
   scene.add(grid);
 }
 
-/* ---------------- HERO : spinning CD ---------------- */
+/* ---------------- HERO : pencil-sketched spinning disc ---------------- */
 let cd;
 {
   const c = makeCanvas(512, 512);
   const x = c.getContext('2d');
   const cx = 256;
-  const rg = x.createRadialGradient(cx, cx, 40, cx, cx, 250);
-  rg.addColorStop(0, '#e8e8e8');
-  rg.addColorStop(0.45, '#bfc7d2');
-  rg.addColorStop(0.7, '#eef2f8');
-  rg.addColorStop(1, '#9aa5b5');
-  x.fillStyle = rg;
-  x.beginPath(); x.arc(cx, cx, 250, 0, Math.PI * 2); x.fill();
-  if (x.createConicGradient) {
-    const cg = x.createConicGradient(0, cx, cx);
-    const hues = ['#ffd9e8', '#d9e6ff', '#e0ffd9', '#fff3c9', '#f0d9ff', '#ffd9e8'];
-    hues.forEach((h, i) => cg.addColorStop(i / (hues.length - 1), h));
-    x.globalAlpha = 0.5;
-    x.fillStyle = cg;
-    x.beginPath(); x.arc(cx, cx, 250, 0, Math.PI * 2); x.fill();
-    x.globalAlpha = 1;
+  // paper disc
+  x.fillStyle = '#fdfcf7';
+  x.beginPath(); x.arc(cx, cx, 246, 0, Math.PI * 2); x.fill();
+  // sketchy double outline — slightly offset passes like a rough pencil
+  x.strokeStyle = '#2b2b2b';
+  x.lineCap = 'round';
+  for (const [r, w, ox, oy] of [[244, 5, 0, 0], [239, 2.5, 3, -2], [50, 4, 0, 0], [46, 2, -2, 2]]) {
+    x.lineWidth = w;
+    x.beginPath(); x.arc(cx + ox, cx + oy, r, 0.05, Math.PI * 2 - 0.08); x.stroke();
   }
+  // highlighter swipe arc
+  x.strokeStyle = 'rgba(255, 227, 77, 0.85)';
+  x.lineWidth = 34;
+  x.beginPath(); x.arc(cx, cx, 150, -0.5, 1.25); x.stroke();
+  // radial pencil hatching
+  x.strokeStyle = 'rgba(43,43,43,0.35)';
+  x.lineWidth = 2;
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * Math.PI * 2 + (i % 3) * 0.02;
+    const r1 = 70 + (i % 5) * 8;
+    const r2 = 225 - (i % 7) * 6;
+    x.beginPath();
+    x.moveTo(cx + Math.cos(a) * r1, cx + Math.sin(a) * r1);
+    x.lineTo(cx + Math.cos(a) * r2, cx + Math.sin(a) * r2);
+    x.stroke();
+  }
+  // punch the centre hole out
   x.globalCompositeOperation = 'destination-out';
   x.beginPath(); x.arc(cx, cx, 42, 0, Math.PI * 2); x.fill();
   x.globalCompositeOperation = 'source-over';
-  x.strokeStyle = 'rgba(0,0,0,0.35)';
-  x.lineWidth = 6;
-  x.beginPath(); x.arc(cx, cx, 46, 0, Math.PI * 2); x.stroke();
-  x.beginPath(); x.arc(cx, cx, 247, 0, Math.PI * 2); x.stroke();
 
   const tex = canvasTexture(c);
   cd = new THREE.Mesh(
@@ -222,18 +232,24 @@ let polaroid;
 function drawPolaroid() {
   const c = makeCanvas(512, 620);
   const x = c.getContext('2d');
-  x.fillStyle = '#f6f2ea';
+  x.fillStyle = '#ffffff';
   x.fillRect(0, 0, 512, 620);
-  // photo area — halftone portrait placeholder, yellow-tinted like the zine
-  x.fillStyle = '#1a1503';
+  x.strokeStyle = '#2b2b2b';
+  x.lineWidth = 4;
+  x.strokeRect(6, 6, 500, 608);
+  // photo area — pencil-stipple portrait placeholder, dark dots on paper
+  x.fillStyle = '#f3efe4';
   x.fillRect(36, 36, 440, 440);
+  x.strokeStyle = 'rgba(43,43,43,0.7)';
+  x.lineWidth = 3;
+  x.strokeRect(36, 36, 440, 440);
   x.save();
   x.beginPath(); x.rect(36, 36, 440, 440); x.clip();
-  x.fillStyle = '#f5c518';
+  x.fillStyle = '#3a3733';
   for (let r = 0; r < 26; r++) {
     for (let col = 0; col < 26; col++) {
       const d = Math.hypot(col - 13, r - 10);
-      const rad = Math.max(0.4, 7.2 - d * 0.55 + Math.sin(col * 1.7 + r) * 1.1);
+      const rad = Math.max(0.3, 6.4 - d * 0.55 + Math.sin(col * 1.7 + r) * 1.1);
       x.beginPath();
       x.arc(36 + 12 + col * 17, 36 + 12 + r * 17, rad, 0, Math.PI * 2);
       x.fill();
@@ -241,10 +257,10 @@ function drawPolaroid() {
   }
   x.restore();
   // caption
-  x.fillStyle = '#111';
-  x.font = '44px "Permanent Marker"';
+  x.fillStyle = '#2b2b2b';
+  x.font = '700 52px "Caveat"';
   x.textAlign = 'center';
-  x.fillText('jedidiah ✳ enesi', 256, 560);
+  x.fillText('jedidiah ✳ enesi', 256, 566);
   return canvasTexture(c);
 }
 function buildPolaroid() {
@@ -275,38 +291,47 @@ function buildPolaroid() {
 function folderFaceTexture(p, idx) {
   const c = makeCanvas(512, 360);
   const x = c.getContext('2d');
-  // manila body
-  x.fillStyle = '#e9b949';
+  // soft manila body with a pencil outline
+  x.fillStyle = '#f2d47e';
   x.fillRect(0, 0, 512, 360);
   const grad = x.createLinearGradient(0, 0, 0, 360);
-  grad.addColorStop(0, 'rgba(255,255,255,0.14)');
-  grad.addColorStop(1, 'rgba(80,50,0,0.22)');
+  grad.addColorStop(0, 'rgba(255,255,255,0.35)');
+  grad.addColorStop(1, 'rgba(120,90,20,0.12)');
   x.fillStyle = grad;
   x.fillRect(0, 0, 512, 360);
+  x.strokeStyle = '#2b2b2b';
+  x.lineWidth = 6;
+  x.strokeRect(3, 3, 506, 354);
   // sticker label
   x.save();
   x.translate(256, 175);
   x.rotate(-0.03 + (idx % 2) * 0.06);
-  x.fillStyle = '#f6f2ea';
-  x.strokeStyle = '#111';
-  x.lineWidth = 5;
+  x.fillStyle = '#fdfcf7';
+  x.strokeStyle = '#2b2b2b';
+  x.lineWidth = 4;
   x.fillRect(-200, -85, 400, 170);
   x.strokeRect(-200, -85, 400, 170);
-  x.fillStyle = '#111';
-  x.font = '52px "Permanent Marker"';
-  x.textAlign = 'center';
+  // highlighter swipe behind the title
+  x.fillStyle = 'rgba(255, 227, 77, 0.9)';
   const lines = p.short.split('\n');
+  lines.forEach((ln, i) => {
+    const y = -10 + i * 58 - (lines.length - 1) * 20;
+    x.fillRect(-170, y - 26, 340, 34);
+  });
+  x.fillStyle = '#2b2b2b';
+  x.font = '54px "Patrick Hand"';
+  x.textAlign = 'center';
   lines.forEach((ln, i) => {
     x.fillText(ln, 0, -10 + i * 58 - (lines.length - 1) * 20);
   });
-  x.font = '26px "Space Grotesk"';
-  x.fillStyle = p.hue === '#f5c518' ? '#b3261e' : '#555';
-  x.fillText(p.file, 0, 66);
+  x.font = '700 34px "Caveat"';
+  x.fillStyle = '#e0501f';
+  x.fillText(p.file, 0, 68);
   x.restore();
-  // color spine dot
+  // color sticker dot
   x.fillStyle = p.hue;
-  x.strokeStyle = '#111';
-  x.lineWidth = 5;
+  x.strokeStyle = '#2b2b2b';
+  x.lineWidth = 4;
   x.beginPath(); x.arc(462, 44, 26, 0, Math.PI * 2); x.fill(); x.stroke();
   return canvasTexture(c);
 }
@@ -317,7 +342,7 @@ folderGroup.position.z = zOf(2);
 scene.add(folderGroup);
 
 function buildFolders() {
-  const manilaDark = new THREE.MeshLambertMaterial({ color: 0xc79a3a });
+  const manilaDark = new THREE.MeshLambertMaterial({ color: 0xdbb95e });
   PROJECTS.forEach((p, i) => {
     const g = new THREE.Group();
     const back = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.3, 0.08), manilaDark);
@@ -377,7 +402,8 @@ function layoutFolders() {
 
 /* ---------------- THE WALL ---------------- */
 const WALL_KEY = 'enesi-wall-v1';
-const SPRAY_COLORS = ['#f5c518', '#ffffff', '#ff5d5d', '#cba6f7', '#7df9aa', '#9ad7ff', '#ff9c3f'];
+const PEN_COLORS = ['#2b2b2b', '#2456d6', '#d63a2f', '#2e8b3a', '#7a3fd1'];
+const HL_COLORS = ['rgba(255,227,77,0.75)', 'rgba(185,241,141,0.75)', 'rgba(255,183,197,0.7)'];
 let wallMesh, wallCanvas, wallTexture;
 
 function loadWallEntries() {
@@ -408,30 +434,40 @@ function hashStr(s) {
   return (h >>> 0) / 4294967295;
 }
 
-function sprayText(x, text, px, py, size, color, rot) {
+function penText(x, text, px, py, size, color, rot, hl) {
   x.save();
   x.translate(px, py);
   x.rotate(rot);
-  x.font = `${size}px "Rubik Spray Paint"`;
+  x.font = `700 ${size}px "Caveat"`;
   x.textAlign = 'center';
   x.textBaseline = 'middle';
-  // overspray glow
-  x.shadowColor = color;
-  x.shadowBlur = size * 0.45;
-  x.fillStyle = color;
-  x.globalAlpha = 0.92;
-  x.fillText(text, 0, 0);
-  x.shadowBlur = size * 0.12;
-  x.fillText(text, 0, 0);
-  // a paint drip or two
   const w = x.measureText(text).width;
-  x.shadowBlur = 0;
-  x.globalAlpha = 0.5;
-  const drips = 1 + Math.floor(hashStr(text) * 2);
-  for (let i = 0; i < drips; i++) {
-    const dx = (hashStr(text + i) - 0.5) * w * 0.8;
-    const dl = 10 + hashStr(text + 'd' + i) * size * 0.9;
-    x.fillRect(dx - 1.5, size * 0.28, 3, dl);
+  // highlighter swipe behind some names
+  if (hl) {
+    x.fillStyle = hl;
+    x.fillRect(-w / 2 - 8, -size * 0.28, w + 16, size * 0.58);
+  }
+  // double pass with a tiny offset = pressed-pen feel
+  x.fillStyle = color;
+  x.fillText(text, 0, 0);
+  x.globalAlpha = 0.45;
+  x.fillText(text, 1.5, 1);
+  // squiggle underline on some names
+  if (hashStr(text) > 0.55) {
+    x.globalAlpha = 0.9;
+    x.strokeStyle = color;
+    x.lineWidth = Math.max(2, size * 0.045);
+    x.lineCap = 'round';
+    x.beginPath();
+    const y0 = size * 0.42;
+    x.moveTo(-w / 2, y0);
+    for (let i = 1; i <= 8; i++) {
+      x.quadraticCurveTo(
+        -w / 2 + (w / 8) * (i - 0.5), y0 + (i % 2 ? 5 : -5),
+        -w / 2 + (w / 8) * i, y0
+      );
+    }
+    x.stroke();
   }
   x.restore();
 }
@@ -440,38 +476,45 @@ function drawWall() {
   if (!wallCanvas) return;
   const x = wallCanvas.getContext('2d');
   const W = wallCanvas.width, H = wallCanvas.height;
-  // concrete
+  // notebook page
   x.globalAlpha = 1;
-  x.fillStyle = '#181818';
+  x.fillStyle = '#fdfcf7';
   x.fillRect(0, 0, W, H);
-  // noise speckle
-  x.fillStyle = 'rgba(255,255,255,0.03)';
-  for (let i = 0; i < 900; i++) {
-    x.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+  // ruled lines
+  x.strokeStyle = 'rgba(143, 166, 207, 0.55)';
+  x.lineWidth = 2.5;
+  for (let y = 170; y < H; y += 76) {
+    x.beginPath(); x.moveTo(0, y); x.lineTo(W, y); x.stroke();
   }
-  // brick joints
-  x.strokeStyle = 'rgba(0,0,0,0.55)';
-  x.lineWidth = 4;
-  const bh = 86;
-  for (let r = 0; r * bh < H; r++) {
-    x.beginPath(); x.moveTo(0, r * bh); x.lineTo(W, r * bh); x.stroke();
-    const off = r % 2 ? 110 : 0;
-    for (let cx = off; cx < W; cx += 220) {
-      x.beginPath(); x.moveTo(cx, r * bh); x.lineTo(cx, (r + 1) * bh); x.stroke();
-    }
+  // red margin line + punched holes
+  x.strokeStyle = 'rgba(224, 80, 31, 0.6)';
+  x.lineWidth = 3;
+  x.beginPath(); x.moveTo(120, 0); x.lineTo(120, H); x.stroke();
+  x.fillStyle = '#f4f1e8';
+  x.strokeStyle = 'rgba(43,43,43,0.4)';
+  x.lineWidth = 3;
+  for (const hy of [H * 0.2, H * 0.5, H * 0.8]) {
+    x.beginPath(); x.arc(58, hy, 22, 0, Math.PI * 2); x.fill(); x.stroke();
   }
-  x.strokeStyle = 'rgba(255,255,255,0.05)';
-  x.lineWidth = 1.5;
-  for (let r = 0; r * bh < H; r++) {
-    x.beginPath(); x.moveTo(0, r * bh + 2); x.lineTo(W, r * bh + 2); x.stroke();
-  }
-  // header tag
-  sprayText(x, 'THEY WERE HERE ✳', W / 2, 96, 88, '#f5c518', -0.012);
+  // page border
+  x.strokeStyle = '#2b2b2b';
+  x.lineWidth = 6;
+  x.strokeRect(3, 3, W - 6, H - 6);
+  // header in sketch caps with a highlighter swipe
+  x.save();
+  x.fillStyle = 'rgba(255,227,77,0.9)';
+  x.fillRect(W / 2 - 460, 52, 920, 52);
+  x.fillStyle = '#2b2b2b';
+  x.font = '700 84px "Cabin Sketch"';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillText('THEY WERE HERE ✳', W / 2, 88);
+  x.restore();
   // entries — grid slots with per-name jitter so it looks chaotic but never
   // stacks two names on the same spot
   const cols = 4;
   const top = 190;
-  const cellW = W / cols;
+  const cellW = (W - 140) / cols;
   const cellH = 148;
   const rows = Math.floor((H - top) / cellH);
   const slots = cols * rows;
@@ -481,12 +524,13 @@ function drawWall() {
     const row = Math.floor(slot / cols);
     const h1 = hashStr(e.n + i);
     const h2 = hashStr(i + e.n);
-    const px = col * cellW + cellW / 2 + (h1 - 0.5) * cellW * 0.3;
+    const px = 140 + col * cellW + cellW / 2 + (h1 - 0.5) * cellW * 0.3;
     const py = top + row * cellH + cellH / 2 + (h2 - 0.5) * cellH * 0.3;
-    const color = SPRAY_COLORS[Math.floor(h1 * SPRAY_COLORS.length)];
-    const size = 52 + h2 * 34;
-    const rot = (h1 - 0.5) * 0.3;
-    sprayText(x, e.n, px, py, size, color, rot);
+    const color = PEN_COLORS[Math.floor(h1 * PEN_COLORS.length)];
+    const size = 62 + h2 * 40;
+    const rot = (h1 - 0.5) * 0.22;
+    const hl = h2 > 0.62 ? HL_COLORS[Math.floor(h1 * HL_COLORS.length)] : null;
+    penText(x, e.n, px, py, size, color, rot, hl);
   });
   if (wallTexture) wallTexture.needsUpdate = true;
   const counter = document.getElementById('wall-count');
@@ -655,24 +699,26 @@ const modalEl = document.getElementById('modal');
 let currentProject = 0;
 
 function shotPlaceholder(p) {
-  // a fake retro browser window as the "screenshot" until a real one
+  // a hand-drawn browser sketch as the "screenshot" until a real one
   // is dropped into /public/shots/<slug>.png
+  const gridLines = [...Array(12)].map((_, i) =>
+    `<line x1="0" y1="${34 + i * 32}" x2="640" y2="${34 + i * 32}" stroke="#dbe2f0" stroke-width="1"/>
+     <line x1="${(i + 1) * 50}" y1="34" x2="${(i + 1) * 50}" y2="380" stroke="#dbe2f0" stroke-width="1"/>`
+  ).join('');
   return `
   <svg viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg">
-    <rect width="640" height="380" fill="#111"/>
-    <rect width="640" height="34" fill="${p.hue}"/>
-    <circle cx="18" cy="17" r="6" fill="#111"/>
-    <circle cx="38" cy="17" r="6" fill="#111"/>
-    <circle cx="58" cy="17" r="6" fill="#111"/>
-    <text x="320" y="23" font-family="'Space Grotesk',sans-serif" font-size="14" font-weight="700" fill="#111" text-anchor="middle">${p.slug}.exe</text>
-    ${[...Array(40)].map((_, i) => {
-      const a = hashStr(p.slug + i);
-      const b = hashStr(i + p.slug);
-      return `<circle cx="${40 + a * 560}" cy="${70 + b * 280}" r="${1 + a * 2.5}" fill="${p.hue}" opacity="0.35"/>`;
-    }).join('')}
-    <text x="320" y="200" font-family="'Rubik Spray Paint',cursive" font-size="58" fill="${p.hue}" text-anchor="middle">${p.short.split('\n')[0]}</text>
-    <text x="320" y="262" font-family="'Rubik Spray Paint',cursive" font-size="58" fill="${p.hue}" text-anchor="middle">${p.short.split('\n')[1] || ''}</text>
-    <text x="320" y="330" font-family="'Permanent Marker',cursive" font-size="18" fill="#888" text-anchor="middle">✳ screenshot coming soon ✳</text>
+    <rect width="640" height="380" fill="#fdfcf7"/>
+    ${gridLines}
+    <rect width="640" height="34" fill="${p.hue}" opacity="0.85"/>
+    <line x1="0" y1="34" x2="640" y2="34" stroke="#2b2b2b" stroke-width="2.5" stroke-dasharray="7 5"/>
+    <circle cx="18" cy="17" r="6" fill="#fdfcf7" stroke="#2b2b2b" stroke-width="2"/>
+    <circle cx="38" cy="17" r="6" fill="#fdfcf7" stroke="#2b2b2b" stroke-width="2"/>
+    <circle cx="58" cy="17" r="6" fill="#fdfcf7" stroke="#2b2b2b" stroke-width="2"/>
+    <text x="320" y="23" font-family="'Patrick Hand',cursive" font-size="16" fill="#2b2b2b" text-anchor="middle">${p.slug}.sketch</text>
+    <rect x="150" y="150" width="340" height="46" fill="#ffe34d" opacity="0.8" transform="rotate(-1 320 200)"/>
+    <text x="320" y="190" font-family="'Cabin Sketch',cursive" font-weight="700" font-size="52" fill="#2b2b2b" text-anchor="middle">${p.short.split('\n')[0]}</text>
+    <text x="320" y="250" font-family="'Cabin Sketch',cursive" font-weight="700" font-size="52" fill="#2b2b2b" text-anchor="middle">${p.short.split('\n')[1] || ''}</text>
+    <text x="320" y="330" font-family="'Caveat',cursive" font-size="26" fill="#8a857a" text-anchor="middle">✳ screenshot coming soon ✳</text>
   </svg>`;
 }
 
@@ -808,9 +854,9 @@ function tick() {
 async function boot() {
   try {
     await Promise.all([
-      document.fonts.load('60px "Rubik Spray Paint"'),
-      document.fonts.load('60px "Permanent Marker"'),
-      document.fonts.load('60px "Space Grotesk"'),
+      document.fonts.load('700 60px "Caveat"'),
+      document.fonts.load('60px "Patrick Hand"'),
+      document.fonts.load('700 60px "Cabin Sketch"'),
     ]);
   } catch (e) { /* fonts blocked — fallbacks are fine */ }
 
