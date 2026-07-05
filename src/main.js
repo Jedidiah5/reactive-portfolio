@@ -401,22 +401,27 @@ function layoutFolders() {
 }
 
 /* ---------------- THE WALL ---------------- */
-const WALL_KEY = 'enesi-wall-v1';
-const PEN_COLORS = ['#2b2b2b', '#2456d6', '#d63a2f', '#2e8b3a', '#7a3fd1'];
-const HL_COLORS = ['rgba(255,227,77,0.75)', 'rgba(185,241,141,0.75)', 'rgba(255,183,197,0.7)'];
-// every visitor gets their own handwriting
-const HAND_FONTS = ['"Caveat"', '"Patrick Hand"', '"Shadows Into Light"', '"Gochi Hand"'];
+const WALL_KEY = 'enesi-wall-v2';
+// sticky notes — yellow, blue, pink only
+const NOTE_COLORS = ['#ffef7a', '#9ad7ff', '#ffb7c5'];
+const NOTE_FOLDS = ['#e0cc42', '#66aede', '#ee8ba2'];
+const NOTE_LIMIT = 100;
 let wallMesh, wallCanvas, wallTexture;
+const noteMeshes = [];
+const flyingNotes = [];
 
 function loadWallEntries() {
   try {
     const raw = localStorage.getItem(WALL_KEY);
     if (raw) return JSON.parse(raw);
+    // old pen signatures become notes
+    const v1 = localStorage.getItem('enesi-wall-v1');
+    if (v1) return JSON.parse(v1).map((e, i) => ({ x: e.n, c: i % 3, t: e.t }));
   } catch (e) { /* corrupted — start fresh */ }
   return [
-    { n: 'ENESI ✳', t: 0 },
-    { n: 'CLAUDE', t: 1 },
-    { n: 'U R NEXT', t: 2 },
+    { x: 'ENESI WAS HERE ✳', c: 0, t: 0 },
+    { x: 'you found the wall! stick a note :)', c: 2, t: 1 },
+    { x: 'CLAUDE stuck this one', c: 1, t: 2 },
   ];
 }
 let wallEntries = loadWallEntries();
@@ -436,50 +441,119 @@ function hashStr(s) {
   return (h >>> 0) / 4294967295;
 }
 
-function penText(x, text, px, py, size, color, rot, hl, maxW) {
-  x.save();
-  x.translate(px, py);
-  x.rotate(rot);
-  const font = HAND_FONTS[Math.floor(hashStr(text + 'font') * HAND_FONTS.length)];
-  x.font = `700 ${size}px ${font}`;
-  x.textAlign = 'center';
-  x.textBaseline = 'middle';
-  let w = x.measureText(text).width;
-  // shrink long names until they fit their patch of the page
-  while (maxW && w > maxW && size > 24) {
-    size *= 0.9;
-    x.font = `700 ${size}px ${font}`;
-    w = x.measureText(text).width;
-  }
-  // highlighter swipe behind some names
-  if (hl) {
-    x.fillStyle = hl;
-    x.fillRect(-w / 2 - 8, -size * 0.28, w + 16, size * 0.58);
-  }
-  // double pass with a tiny offset = pressed-pen feel
-  x.fillStyle = color;
-  x.fillText(text, 0, 0);
-  x.globalAlpha = 0.45;
-  x.fillText(text, 1.5, 1);
-  // squiggle underline on some names
-  if (hashStr(text) > 0.55) {
-    x.globalAlpha = 0.9;
-    x.strokeStyle = color;
-    x.lineWidth = Math.max(2, size * 0.045);
-    x.lineCap = 'round';
-    x.beginPath();
-    const y0 = size * 0.42;
-    x.moveTo(-w / 2, y0);
-    for (let i = 1; i <= 8; i++) {
-      x.quadraticCurveTo(
-        -w / 2 + (w / 8) * (i - 0.5), y0 + (i % 2 ? 5 : -5),
-        -w / 2 + (w / 8) * i, y0
-      );
-    }
-    x.stroke();
-  }
-  x.restore();
+// where note #i lives on the page (wall-local units), jittered per text
+function noteSlot(i, text) {
+  const cols = 9, rows = 4;
+  const cellW = 16.6 / cols, cellH = 6.5 / rows;
+  const slot = i % (cols * rows);
+  const col = slot % cols, row = Math.floor(slot / cols);
+  const h1 = hashStr(text + i), h2 = hashStr(i + text);
+  return {
+    x: -8.0 + col * cellW + cellW / 2 + (h1 - 0.5) * cellW * 0.35,
+    y: 2.5 - row * cellH - cellH / 2 + (h2 - 0.5) * cellH * 0.35,
+    z: 0.08 + (i % (cols * rows)) * 0.004, // stacking order, no z-fighting
+    rot: (h1 - 0.5) * 0.24,
+  };
 }
+
+function wrapNote(ctx, text, maxW, maxLines) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && cur) {
+      if (lines.length === maxLines - 1) return [...lines, cur + '…'];
+      lines.push(cur);
+      cur = w;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function noteTexture(entry) {
+  const c = makeCanvas(256, 256);
+  const x = c.getContext('2d');
+  x.fillStyle = NOTE_COLORS[entry.c % 3];
+  x.fillRect(0, 0, 256, 256);
+  // glue-strip sheen up top, slight shadowing below
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, 'rgba(255,255,255,0.4)');
+  g.addColorStop(0.16, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(43,43,43,0.07)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 256, 256);
+  // folded corner, bottom-right
+  x.fillStyle = NOTE_FOLDS[entry.c % 3];
+  x.beginPath();
+  x.moveTo(256, 212); x.lineTo(256, 256); x.lineTo(212, 256);
+  x.closePath(); x.fill();
+  // pencil border
+  x.strokeStyle = 'rgba(43,43,43,0.5)';
+  x.lineWidth = 4;
+  x.strokeRect(2, 2, 252, 252);
+  // the note itself — tiny on the wall, click to read in full
+  x.fillStyle = '#2b2b2b';
+  x.font = '30px "Patrick Hand"';
+  const lines = wrapNote(x, entry.x, 208, 5);
+  lines.forEach((ln, i) => x.fillText(ln, 22, 58 + i * 38));
+  return canvasTexture(c);
+}
+
+function makeNoteMesh(entry, i) {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.24, 1.24),
+    new THREE.MeshBasicMaterial({ map: noteTexture(entry) })
+  );
+  const s = noteSlot(i, entry.x);
+  mesh.userData.slot = s;
+  mesh.userData.entryIndex = i;
+  mesh.position.set(s.x, s.y, s.z);
+  mesh.rotation.z = s.rot;
+  noteMeshes.push(mesh);
+  return mesh;
+}
+
+// new note spawns in front of the camera and flies onto the wall
+function addNoteAnimated(entry, i) {
+  const mesh = makeNoteMesh(entry, i);
+  wallMesh.add(mesh);
+  mesh.updateWorldMatrix(true, false);
+  const targetPos = mesh.getWorldPosition(new THREE.Vector3());
+  const targetQuat = mesh.getWorldQuaternion(new THREE.Quaternion());
+  const targetScale = mesh.getWorldScale(new THREE.Vector3());
+  scene.attach(mesh);
+  const startPos = new THREE.Vector3(0, -0.9, -2.4).applyMatrix4(camera.matrixWorld);
+  mesh.position.copy(startPos);
+  mesh.quaternion.copy(camera.quaternion);
+  mesh.scale.copy(targetScale).multiplyScalar(2.4);
+  flyingNotes.push({
+    mesh, t: 0,
+    startPos, startQuat: camera.quaternion.clone(), startScale: mesh.scale.clone(),
+    targetPos, targetQuat, targetScale,
+  });
+}
+
+/* ---- read a note ---- */
+const noteViewEl = document.getElementById('note-view');
+function openNoteView(i) {
+  const e = wallEntries[i];
+  if (!e) return;
+  const big = document.getElementById('bignote');
+  big.textContent = e.x;
+  big.style.background = NOTE_COLORS[e.c % 3];
+  noteViewEl.classList.remove('hidden');
+  modalOpen = true;
+}
+function closeNoteView() {
+  noteViewEl.classList.add('hidden');
+  modalOpen = false;
+}
+document.getElementById('note-close').addEventListener('click', closeNoteView);
+noteViewEl.addEventListener('click', (e) => { if (e.target === noteViewEl) closeNoteView(); });
 
 function drawWall() {
   if (!wallCanvas) return;
@@ -519,31 +593,9 @@ function drawWall() {
   x.textBaseline = 'middle';
   x.fillText('THEY WERE HERE ✳', W / 2, 88);
   x.restore();
-  // entries — grid slots with per-name jitter so it looks chaotic but never
-  // stacks two names on the same spot
-  const cols = 4;
-  const top = 190;
-  const cellW = (W - 140) / cols;
-  const cellH = 148;
-  const rows = Math.floor((H - top) / cellH);
-  const slots = cols * rows;
-  wallEntries.forEach((e, i) => {
-    const slot = i % slots;
-    const col = slot % cols;
-    const row = Math.floor(slot / cols);
-    const h1 = hashStr(e.n + i);
-    const h2 = hashStr(i + e.n);
-    const px = 140 + col * cellW + cellW / 2 + (h1 - 0.5) * cellW * 0.3;
-    const py = top + row * cellH + cellH / 2 + (h2 - 0.5) * cellH * 0.3;
-    const color = PEN_COLORS[Math.floor(h1 * PEN_COLORS.length)];
-    const size = 62 + h2 * 40;
-    const rot = (h1 - 0.5) * 0.22;
-    const hl = h2 > 0.62 ? HL_COLORS[Math.floor(h1 * HL_COLORS.length)] : null;
-    penText(x, e.n, px, py, size, color, rot, hl, cellW * 1.06);
-  });
   if (wallTexture) wallTexture.needsUpdate = true;
   const counter = document.getElementById('wall-count');
-  if (counter) counter.textContent = `${wallEntries.length} MARKS ON THE WALL`;
+  if (counter) counter.textContent = `${wallEntries.length} NOTES ON THE WALL`;
 }
 
 function buildWall() {
@@ -556,6 +608,8 @@ function buildWall() {
   wallMesh.position.set(0, 0.6, zOf(3) - 2);
   scene.add(wallMesh);
   drawWall();
+  // stick every saved note on as its own little mesh
+  wallEntries.forEach((e, i) => wallMesh.add(makeNoteMesh(e, i)));
   layoutWall();
 }
 
@@ -587,7 +641,13 @@ let scrollCurrent = 0;
 let modalOpen = false;
 
 // dev console handle: check scroll state from the browser console
-window.__enesi = { get scroll() { return { target: scrollTarget, current: scrollCurrent }; } };
+window.__enesi = {
+  get scroll() { return { target: scrollTarget, current: scrollCurrent }; },
+  get notes() { return noteMeshes; },
+  get flying() { return flyingNotes.length; },
+  openNote(i) { openNoteView(i); },
+  camera,
+};
 
 function clampScroll(v) {
   return THREE.MathUtils.clamp(v, 0, NUM_SECTIONS - 1);
@@ -630,9 +690,12 @@ window.addEventListener('touchmove', (e) => {
 // keyboard
 window.addEventListener('keydown', (e) => {
   if (modalOpen) {
-    if (e.key === 'Escape') closeModal();
-    if (e.key === 'ArrowLeft') stepProject(-1);
-    if (e.key === 'ArrowRight') stepProject(1);
+    if (e.key === 'Escape') { closeModal(); closeSign(); closeNoteView(); }
+    // arrows browse projects only when the project window itself is open
+    if (!modalEl.classList.contains('hidden')) {
+      if (e.key === 'ArrowLeft') stepProject(-1);
+      if (e.key === 'ArrowRight') stepProject(1);
+    }
     return;
   }
   if (e.key === 'ArrowDown' || e.key === 'PageDown') scrollTarget = clampScroll(Math.round(scrollTarget) + 1);
@@ -666,6 +729,7 @@ function updateOverlays() {
 const pointer = new THREE.Vector2(0, 0);
 const raycaster = new THREE.Raycaster();
 let hoverFolder = null;
+let hoverNote = null;
 
 window.addEventListener('pointermove', (e) => {
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -677,6 +741,16 @@ window.addEventListener('pointermove', (e) => {
     if (hoverFolder !== g) {
       hoverFolder = g;
       document.body.style.cursor = g ? 'pointer' : '';
+    }
+  } else if (e.pointerType === 'mouse' && !modalOpen && Math.abs(scrollCurrent - 3) < 0.5) {
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(noteMeshes, false);
+    const n = hits.length ? hits[0].object : null;
+    if (hoverNote !== n) {
+      if (hoverNote) hoverNote.scale.setScalar(1);
+      hoverNote = n;
+      if (n) n.scale.setScalar(1.12);
+      document.body.style.cursor = n ? 'pointer' : '';
     }
   }
 });
@@ -690,14 +764,18 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const dragged = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
   downAt = null;
   if (dragged > 12) return; // it was a swipe, not a tap
-  if (Math.abs(scrollCurrent - 2) > 0.6) return;
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(folderGroup.children, true);
-  for (const h of hits) {
-    const idx = h.object.userData.projectIndex;
-    if (idx !== undefined) { openModal(idx); return; }
+  if (Math.abs(scrollCurrent - 2) < 0.6) {
+    const hits = raycaster.intersectObjects(folderGroup.children, true);
+    for (const h of hits) {
+      const idx = h.object.userData.projectIndex;
+      if (idx !== undefined) { openModal(idx); return; }
+    }
+  } else if (Math.abs(scrollCurrent - 3) < 0.6) {
+    const hits = raycaster.intersectObjects(noteMeshes, false);
+    if (hits.length) openNoteView(hits[0].object.userData.entryIndex);
   }
 });
 
@@ -765,10 +843,12 @@ document.getElementById('modal-next').addEventListener('click', () => stepProjec
 modalEl.addEventListener('click', (e) => { if (e.target === modalEl) closeModal(); });
 
 /* ============================================================
-   SIGN THE WALL
+   STICK A NOTE
    ============================================================ */
 const signEl = document.getElementById('sign');
 const signInput = document.getElementById('sign-input');
+const charCount = document.getElementById('char-count');
+let noteColor = 0;
 
 document.getElementById('sign-btn').addEventListener('click', () => {
   signEl.classList.remove('hidden');
@@ -782,19 +862,34 @@ function closeSign() {
 document.getElementById('sign-close').addEventListener('click', closeSign);
 signEl.addEventListener('click', (e) => { if (e.target === signEl) closeSign(); });
 
+document.querySelectorAll('.swatch').forEach((b) => {
+  b.addEventListener('click', () => {
+    noteColor = Number(b.dataset.c);
+    document.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('selected', s === b));
+    signInput.style.background = NOTE_COLORS[noteColor];
+    signInput.focus();
+  });
+});
+signInput.addEventListener('input', () => {
+  charCount.textContent = `${signInput.value.length} / ${NOTE_LIMIT}`;
+});
+
 function submitSignature() {
-  const name = signInput.value.trim().toUpperCase().slice(0, 18);
-  if (!name) { signInput.focus(); return; }
-  wallEntries.push({ n: name, t: Date.now() });
+  const text = signInput.value.trim().slice(0, NOTE_LIMIT);
+  if (!text) { signInput.focus(); return; }
+  const entry = { x: text, c: noteColor, t: Date.now() };
+  wallEntries.push(entry);
   saveWallEntries();
-  drawWall();
+  addNoteAnimated(entry, wallEntries.length - 1);
+  drawWall(); // refreshes the counter
   signInput.value = '';
+  charCount.textContent = `0 / ${NOTE_LIMIT}`;
   closeSign();
-  scrollTarget = 3; // make sure they see it land
+  scrollTarget = 3; // watch it land
 }
 document.getElementById('sign-submit').addEventListener('click', submitSignature);
 signInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') submitSignature();
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitSignature(); }
   if (e.key === 'Escape') closeSign();
 });
 
@@ -824,7 +919,9 @@ window.addEventListener('resize', onResize);
 
 const clock = new THREE.Clock();
 function tick() {
-  const t = clock.getElapsedTime();
+  // cap dt so animations don't skip after a tab switch
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
   scrollCurrent += (scrollTarget - scrollCurrent) * 0.07;
 
   camera.position.z = CAM_DIST - scrollCurrent * SECTION_GAP;
@@ -851,6 +948,27 @@ function tick() {
     f.position.y += Math.sin(t * 1.1 + f.userData.ph) * 0.0016;
   });
 
+  // fresh sticky notes flying onto the wall
+  for (let i = flyingNotes.length - 1; i >= 0; i--) {
+    const f = flyingNotes[i];
+    f.t = Math.min(1, f.t + dt / 0.9);
+    const e = 1 - Math.pow(1 - f.t, 3); // easeOutCubic
+    f.mesh.position.lerpVectors(f.startPos, f.targetPos, e);
+    f.mesh.position.y += Math.sin(e * Math.PI) * 1.2; // a little toss arc
+    f.mesh.quaternion.slerpQuaternions(f.startQuat, f.targetQuat, e);
+    f.mesh.rotateZ((1 - e) * 0.7 * Math.sin(f.t * 9)); // wobble in flight
+    f.mesh.scale.lerpVectors(f.startScale, f.targetScale, e);
+    if (f.t >= 1) {
+      // land: snap onto the wall in exact local coords
+      const s = f.mesh.userData.slot;
+      wallMesh.add(f.mesh);
+      f.mesh.position.set(s.x, s.y, s.z);
+      f.mesh.rotation.set(0, 0, s.rot);
+      f.mesh.scale.setScalar(1);
+      flyingNotes.splice(i, 1);
+    }
+  }
+
   updateOverlays();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -866,8 +984,6 @@ async function boot() {
       document.fonts.load('700 60px "Caveat"'),
       document.fonts.load('60px "Patrick Hand"'),
       document.fonts.load('700 60px "Cabin Sketch"'),
-      document.fonts.load('60px "Shadows Into Light"'),
-      document.fonts.load('60px "Gochi Hand"'),
     ]);
   } catch (e) { /* fonts blocked — fallbacks are fine */ }
 
