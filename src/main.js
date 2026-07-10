@@ -287,7 +287,7 @@ function drawPolaroid() {
   x.fillStyle = '#2b2b2b';
   x.font = '700 52px "Caveat"';
   x.textAlign = 'center';
-  x.fillText('jedidiah ✳ enesi', 256, 566);
+  x.fillText('jedidiah ∗ enesi', 256, 566);
   return canvasTexture(c);
 }
 function buildPolaroid() {
@@ -460,7 +460,7 @@ function loadWallEntries() {
     if (v1) return JSON.parse(v1).map((e, i) => ({ x: e.n, c: i % 3, t: e.t }));
   } catch (e) { /* corrupted — start fresh */ }
   return [
-    { x: 'ENESI WAS HERE ✳', c: 0, t: 0 },
+    { x: 'ENESI WAS HERE ∗', c: 0, t: 0 },
     { x: 'you found the wall! stick a note :)', c: 2, t: 1 },
     { x: 'CLAUDE stuck this one', c: 1, t: 2 },
   ];
@@ -632,7 +632,7 @@ function drawWall() {
   x.font = '700 84px "Cabin Sketch"';
   x.textAlign = 'center';
   x.textBaseline = 'middle';
-  x.fillText('THEY WERE HERE ✳', W / 2, 88);
+  x.fillText('THEY WERE HERE ∗', W / 2, 88);
   x.restore();
   if (wallTexture) wallTexture.needsUpdate = true;
   const counter = document.getElementById('wall-count');
@@ -851,7 +851,7 @@ function shotPlaceholder(p) {
     <rect x="150" y="150" width="340" height="46" fill="#ffe34d" opacity="0.8" transform="rotate(-1 320 200)"/>
     <text x="320" y="190" font-family="'Cabin Sketch',cursive" font-weight="700" font-size="52" fill="#2b2b2b" text-anchor="middle">${p.short.split('\n')[0]}</text>
     <text x="320" y="250" font-family="'Cabin Sketch',cursive" font-weight="700" font-size="52" fill="#2b2b2b" text-anchor="middle">${p.short.split('\n')[1] || ''}</text>
-    <text x="320" y="330" font-family="'Caveat',cursive" font-size="26" fill="#8a857a" text-anchor="middle">✳ screenshot coming soon ✳</text>
+    <text x="320" y="330" font-family="'Caveat',cursive" font-size="26" fill="#8a857a" text-anchor="middle">∗ screenshot coming soon ∗</text>
   </svg>`;
 }
 
@@ -863,7 +863,7 @@ function openModal(i) {
   document.getElementById('modal-goal').textContent = p.goal;
   document.getElementById('modal-role').textContent = p.role;
   const impactEl = document.getElementById('modal-impact');
-  impactEl.textContent = p.impact ? `✳ ${p.impact}` : '';
+  impactEl.textContent = p.impact ? `∗ ${p.impact}` : '';
   impactEl.style.display = p.impact ? '' : 'none';
   document.getElementById('modal-stack').innerHTML =
     p.stack.map((s) => `<span>${s}</span>`).join('');

@@ -25,6 +25,7 @@ html, body {
   font-family: var(--font-body);
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+  font-variant-emoji: text;
 }
 
 /* graph paper — the 3D canvas is transparent so this shows through */
