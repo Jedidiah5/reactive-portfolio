@@ -413,13 +413,15 @@ body {
 .contact-mail {
   display: inline-block;
   margin-top: 1.4rem;
-  font-family: var(--font-note);
-  font-weight: 700;
-  font-size: clamp(1.3rem, 4.5vw, 1.9rem);
-  color: var(--blue);
-  text-decoration: underline wavy rgba(36, 86, 214, 0.5) 2px;
-  text-underline-offset: 6px;
+  font-family: var(--font-body);
+  font-size: clamp(1.15rem, 4vw, 1.7rem);
+  color: var(--ink);
+  text-decoration: none;
+  background: linear-gradient(180deg, transparent 55%, var(--hl) 55%, var(--hl) 92%, transparent 92%);
+  padding: 0 0.25em;
+  transform: rotate(-0.5deg);
 }
+.contact-mail:hover { color: var(--red); }
 .contact-links {
   display: flex;
   justify-content: center;

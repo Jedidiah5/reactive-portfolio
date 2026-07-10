@@ -663,13 +663,18 @@ function layoutWall() {
   wallMesh.scale.setScalar(s);
 }
 
-/* ---------------- CONTACT : chrome knot ---------------- */
+/* ---------------- CONTACT : paper sculpture knot ---------------- */
 let knot;
 {
-  knot = new THREE.Mesh(
-    new THREE.TorusKnotGeometry(1.5, 0.42, 140, 20),
-    new THREE.MeshNormalMaterial()
-  );
+  const geo = new THREE.TorusKnotGeometry(1.5, 0.42, 140, 20);
+  knot = new THREE.Group();
+  // paper body + faint graphite wireframe = pencil-sketched 3D model
+  const paper = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xfbf7ec }));
+  const sketch = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color: 0x2b2b2b, wireframe: true, transparent: true, opacity: 0.16,
+  }));
+  sketch.scale.setScalar(1.002);
+  knot.add(paper, sketch);
   knot.position.set(0, 0.6, zOf(4) - 5);
   scene.add(knot);
 }
