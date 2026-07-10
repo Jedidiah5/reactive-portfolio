@@ -118,22 +118,25 @@ body {
   font-weight: 700;
   font-size: 1.25rem;
   color: var(--ink);
-  background: linear-gradient(180deg, transparent 55%, var(--hl) 55%, var(--hl) 95%, transparent 95%);
-  padding: 0 0.2em;
-  transform: rotate(-1.5deg);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  transform: rotate(-1.5deg);
 }
 .brand-logo {
-  width: 1.55rem;
-  height: 1.55rem;
+  width: 2rem;
+  height: 2rem;
   object-fit: cover;
   border: 1.5px solid var(--ink);
   border-radius: 3px;
   flex-shrink: 0;
 }
-.brand-year { color: var(--pencil); font-size: 0.9rem; }
+.brand-year {
+  color: var(--pencil);
+  font-size: 0.95rem;
+  background: linear-gradient(180deg, transparent 55%, var(--hl) 55%, var(--hl) 95%, transparent 95%);
+  padding: 0 0.15em;
+}
 .navlinks { display: flex; gap: 0.35rem; }
 .navlinks button {
   font-family: var(--font-body);
@@ -213,22 +216,6 @@ body {
   padding: 0 0.15em;
   background: linear-gradient(180deg, transparent 62%, var(--hl) 62%, var(--hl) 90%, transparent 90%);
 }
-.hero-logo-wrap {
-  margin: 0.2rem auto 0;
-  line-height: 0;
-}
-.hero-logo {
-  width: clamp(9.5rem, 32vw, 16rem);
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border: 3px solid var(--ink);
-  border-radius: 8px 12px 9px 11px / 11px 9px 12px 8px;
-  box-shadow: 6px 6px 0 rgba(43,43,43,0.18);
-  transform: rotate(-2deg);
-  display: block;
-  margin: 0 auto;
-}
 .hero-title {
   font-size: clamp(3.2rem, 15vw, 9rem);
   line-height: 1;
@@ -236,8 +223,7 @@ body {
 }
 .tag2026 {
   position: absolute;
-  top: 12%;
-  right: max(2%, calc(50% - 11rem));
+  top: 4%; right: 2%;
   font-family: var(--font-note);
   font-weight: 700;
   font-size: clamp(1.4rem, 4.5vw, 2.4rem);
@@ -677,7 +663,7 @@ body {
 @media (max-width: 560px) {
   .navlinks button { font-size: 0.68rem; padding: 0.26rem 0.4rem; }
   .brand { font-size: 1rem; }
-  .brand-year { display: none; }
+  .brand-logo { width: 1.75rem; height: 1.75rem; }
   .work-head { top: 10%; }
   .wall-ui { bottom: 7%; }
   .clipping {
