@@ -662,8 +662,10 @@ body {
   .clipping-headline { font-size: 1.45rem; margin-bottom: 0.65rem; }
   .clipping-cols { font-size: 0.95rem; line-height: 1.4; }
   .clipping-cols p { margin-bottom: 0.45rem; }
+  .clipping-skills { gap: 0.28rem; margin-top: 0.35rem; }
+  .clipping-skills span { font-size: 0.72rem; padding: 0.08rem 0.38rem; }
   .cv-link { margin-top: 0.55rem; font-size: 1.15rem; }
-  /* drop stamp, long bio, stats strip, skill chips — all repeated elsewhere */
+  /* drop stamp, long bio, stats strip — repeated elsewhere */
   .about-desktop { display: none !important; }
   .about-mobile { display: block; }
 }
