@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { wallIsShared, fetchNotes, pushNote } from './wall-store.js';
 
 /* ============================================================
    ENESI'S SPACE — a 3D retro-modern portfolio
@@ -466,6 +467,7 @@ function loadWallEntries() {
   ];
 }
 let wallEntries = loadWallEntries();
+let sharedWall = false; // true once notes are coming from Firestore
 
 function saveWallEntries() {
   try { localStorage.setItem(WALL_KEY, JSON.stringify(wallEntries)); } catch (e) { /* full */ }
@@ -929,6 +931,8 @@ function submitSignature() {
   const entry = { x: text, c: noteColor, t: Date.now() };
   wallEntries.push(entry);
   saveWallEntries();
+  // share it with everyone; if the write fails the note still lives locally
+  if (sharedWall) pushNote(entry).catch(() => {});
   addNoteAnimated(entry, wallEntries.length - 1);
   drawWall(); // refreshes the counter
   signInput.value = '';
@@ -1028,13 +1032,19 @@ function tick() {
    with the right typefaces, then build everything
    ============================================================ */
 async function boot() {
-  try {
-    await Promise.all([
-      document.fonts.load('700 60px "Caveat"'),
-      document.fonts.load('60px "Patrick Hand"'),
-      document.fonts.load('700 60px "Cabin Sketch"'),
-    ]);
-  } catch (e) { /* fonts blocked — fallbacks are fine */ }
+  // fonts + the shared wall load in parallel; neither can block the site
+  const fonts = Promise.all([
+    document.fonts.load('700 60px "Caveat"'),
+    document.fonts.load('60px "Patrick Hand"'),
+    document.fonts.load('700 60px "Cabin Sketch"'),
+  ]).catch(() => { /* fonts blocked — fallbacks are fine */ });
+  const remote = wallIsShared()
+    ? fetchNotes().then((notes) => {
+        sharedWall = true;
+        if (notes.length) wallEntries = notes;
+      }).catch(() => { /* offline or rules issue — local wall still works */ })
+    : Promise.resolve();
+  await Promise.all([fonts, remote]);
 
   polaroid = buildPolaroid();
   buildFolders();

@@ -29,10 +29,44 @@ link (about card) both point to `/cv.pdf` — drop your CV into
 All project/profile content lives at the top of `src/main.js` in the `PROJECTS`
 array, and the about/contact text is plain HTML in `index.html`.
 
-## The Wall
+## The Wall (shared via Firebase)
 
-Visitor signatures are spray-painted onto a canvas texture and saved in
-`localStorage` — so right now each visitor only sees their own marks plus the
-seeded ones. To make it a truly shared wall, swap `loadWallEntries` /
-`saveWallEntries` in `src/main.js` for calls to a tiny backend (Supabase,
-Firebase, or Vercel KV all work — it's just a list of `{ n: string, t: number }`).
+Sticky notes are stored in Firestore so every visitor sees everyone's notes.
+The wiring is in `src/wall-store.js` (plain REST, no SDK). Until the config
+is filled in — or if the network fails — the wall silently falls back to
+localStorage, so it can never break the site.
+
+One-time setup:
+
+1. Go to https://console.firebase.google.com → **Add project** (no Analytics
+   needed).
+2. **Build → Firestore Database → Create database** → production mode, any
+   region.
+3. In Firestore's **Rules** tab, paste and publish:
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /wall-notes/{note} {
+         allow read: if true;
+         allow create: if request.resource.data.keys().hasOnly(['x', 'c', 't'])
+           && request.resource.data.x is string
+           && request.resource.data.x.size() > 0
+           && request.resource.data.x.size() <= 100
+           && request.resource.data.c is int
+           && request.resource.data.c >= 0
+           && request.resource.data.c <= 2
+           && request.resource.data.t is int;
+         allow update, delete: if false;
+       }
+     }
+   }
+   ```
+
+   (Anyone can read and add a valid note; nobody can edit or delete one.)
+4. **Project settings → General → Your apps → Add app → Web** — you don't
+   need any of the SDK snippet, just copy `projectId` and `apiKey` into
+   `FIREBASE` at the top of `src/wall-store.js`. These two values are public
+   by design; the rules above are what protect the data.
+5. Push — done. Notes now land in the `wall-notes` collection for everyone.
