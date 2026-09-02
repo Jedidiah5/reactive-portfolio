@@ -257,7 +257,26 @@ let cd;
 
 /* ---------------- ABOUT : taped polaroid ---------------- */
 let polaroid;
-function drawPolaroid() {
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function drawCoverImage(ctx, img, dx, dy, dw, dh, focusX = 0.5, focusY = 0.5) {
+  const scale = Math.max(dw / img.width, dh / img.height);
+  const sw = dw / scale;
+  const sh = dh / scale;
+  const sx = Math.max(0, Math.min(img.width - sw, (img.width - sw) * focusX));
+  const sy = Math.max(0, Math.min(img.height - sh, (img.height - sh) * focusY));
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+
+function drawPolaroid(photo) {
   const c = makeCanvas(512, 620);
   const x = c.getContext('2d');
   x.fillStyle = '#ffffff';
@@ -265,7 +284,7 @@ function drawPolaroid() {
   x.strokeStyle = '#2b2b2b';
   x.lineWidth = 4;
   x.strokeRect(6, 6, 500, 608);
-  // photo area — pencil-stipple portrait placeholder, dark dots on paper
+  // photo area
   x.fillStyle = '#f3efe4';
   x.fillRect(36, 36, 440, 440);
   x.strokeStyle = 'rgba(43,43,43,0.7)';
@@ -273,14 +292,19 @@ function drawPolaroid() {
   x.strokeRect(36, 36, 440, 440);
   x.save();
   x.beginPath(); x.rect(36, 36, 440, 440); x.clip();
-  x.fillStyle = '#3a3733';
-  for (let r = 0; r < 26; r++) {
-    for (let col = 0; col < 26; col++) {
-      const d = Math.hypot(col - 13, r - 10);
-      const rad = Math.max(0.3, 6.4 - d * 0.55 + Math.sin(col * 1.7 + r) * 1.1);
-      x.beginPath();
-      x.arc(36 + 12 + col * 17, 36 + 12 + r * 17, rad, 0, Math.PI * 2);
-      x.fill();
+  if (photo) {
+    drawCoverImage(x, photo, 36, 36, 440, 440, 0.82, 0.42);
+  } else {
+    // fallback placeholder if the photo fails to load
+    x.fillStyle = '#3a3733';
+    for (let r = 0; r < 26; r++) {
+      for (let col = 0; col < 26; col++) {
+        const d = Math.hypot(col - 13, r - 10);
+        const rad = Math.max(0.3, 6.4 - d * 0.55 + Math.sin(col * 1.7 + r) * 1.1);
+        x.beginPath();
+        x.arc(36 + 12 + col * 17, 36 + 12 + r * 17, rad, 0, Math.PI * 2);
+        x.fill();
+      }
     }
   }
   x.restore();
@@ -291,11 +315,11 @@ function drawPolaroid() {
   x.fillText('jedidiah ∗ enesi', 256, 566);
   return canvasTexture(c);
 }
-function buildPolaroid() {
+function buildPolaroid(photo) {
   const g = new THREE.Group();
   const card = new THREE.Mesh(
     new THREE.PlaneGeometry(3.4, 4.1),
-    new THREE.MeshBasicMaterial({ map: drawPolaroid() })
+    new THREE.MeshBasicMaterial({ map: drawPolaroid(photo) })
   );
   g.add(card);
   // tape strips
@@ -1046,7 +1070,14 @@ async function boot() {
     : Promise.resolve();
   await Promise.all([fonts, remote]);
 
-  polaroid = buildPolaroid();
+  let profilePhoto;
+  try {
+    profilePhoto = await loadImage('/shots/IMG_5753.jpeg');
+  } catch {
+    /* keep placeholder if the photo fails to load */
+  }
+
+  polaroid = buildPolaroid(profilePhoto);
   buildFolders();
   buildWall();
   onResize();
