@@ -4,8 +4,8 @@
    These two values are safe to ship publicly — write access is controlled
    by the Firestore security rules (see README "The Wall"). */
 export const FIREBASE = {
-  projectId: '', // e.g. 'enesi-space'
-  apiKey: '',    // e.g. 'AIzaSy...'
+  projectId: 'portfolio-7b6a0', // e.g. 'enesi-space'
+  apiKey: 'AIzaSyCw4-K3gan49arv-5MBupV_J-FXZiCebvw',    // e.g. 'AIzaSy...'
 };
 
 const COLLECTION = 'wall-notes';

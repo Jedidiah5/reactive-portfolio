@@ -9,6 +9,12 @@
       "autoPort": true
     },
     {
+      "name": "battlebots-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "C:\\Users\\Admin\\Desktop\\HACKAT~2\\BATTLE~1\\BATTLE~1"],
+      "port": 3000
+    },
+    {
       "name": "ledger",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "C:\\Users\\Admin\\Downloads\\Xero-hackathon"],
