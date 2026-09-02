@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { wallIsShared, fetchNotes, pushNote } from './wall-store.js';
+import { inject } from '@vercel/analytics';
+
+inject();
 
 /* ============================================================
    ENESI'S SPACE — a 3D retro-modern portfolio
