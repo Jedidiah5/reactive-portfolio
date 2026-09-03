@@ -511,17 +511,32 @@ function hashStr(s) {
   return (h >>> 0) / 4294967295;
 }
 
+// the page reshapes itself per orientation: wide 9x4 landscape sheet on
+// desktop, tall 3-column portrait sheet on phones so notes stay big
+// enough to read and tap
+let wallNarrow = false;
+function wallSpec() {
+  return camera.aspect < 0.8
+    ? { w: 9.6, h: 12.8, cols: 3, rows: 6, canvasW: 1024, canvasH: 1366, note: 2.0 }
+    : { w: 18, h: 9, cols: 9, rows: 4, canvasW: 2048, canvasH: 1024, note: 1.24 };
+}
+
 // where note #i lives on the page (wall-local units), jittered per text
 function noteSlot(i, text) {
-  const cols = 9, rows = 4;
-  const cellW = 16.6 / cols, cellH = 6.5 / rows;
-  const slot = i % (cols * rows);
-  const col = slot % cols, row = Math.floor(slot / cols);
+  const s = wallSpec();
+  const leftPad = (140 / s.canvasW) * s.w; // clear the red margin line
+  const topPad = (185 / s.canvasH) * s.h;  // clear the header
+  const usableW = s.w - leftPad - 0.35;
+  const usableH = s.h - topPad - 0.45;
+  const cellW = usableW / s.cols, cellH = usableH / s.rows;
+  const slots = s.cols * s.rows;
+  const slot = i % slots;
+  const col = slot % s.cols, row = Math.floor(slot / s.cols);
   const h1 = hashStr(text + i), h2 = hashStr(i + text);
   return {
-    x: -8.0 + col * cellW + cellW / 2 + (h1 - 0.5) * cellW * 0.35,
-    y: 2.5 - row * cellH - cellH / 2 + (h2 - 0.5) * cellH * 0.35,
-    z: 0.08 + (i % (cols * rows)) * 0.004, // stacking order, no z-fighting
+    x: -s.w / 2 + leftPad + col * cellW + cellW / 2 + (h1 - 0.5) * cellW * 0.3,
+    y: s.h / 2 - topPad - row * cellH - cellH / 2 - (h2 - 0.5) * cellH * 0.3,
+    z: 0.08 + slot * 0.004, // stacking order, no z-fighting
     rot: (h1 - 0.5) * 0.24,
   };
 }
@@ -574,8 +589,9 @@ function noteTexture(entry) {
 }
 
 function makeNoteMesh(entry, i) {
+  const size = wallSpec().note;
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.24, 1.24),
+    new THREE.PlaneGeometry(size, size),
     new THREE.MeshBasicMaterial({ map: noteTexture(entry) })
   );
   const s = noteSlot(i, entry.x);
@@ -653,15 +669,18 @@ function drawWall() {
   x.strokeStyle = '#2b2b2b';
   x.lineWidth = 6;
   x.strokeRect(3, 3, W - 6, H - 6);
-  // header in sketch caps with a highlighter swipe
+  // header in sketch caps with a highlighter swipe — sized to the canvas
   x.save();
-  x.fillStyle = 'rgba(255,227,77,0.9)';
-  x.fillRect(W / 2 - 460, 52, 920, 52);
-  x.fillStyle = '#2b2b2b';
-  x.font = '700 84px "Cabin Sketch"';
+  const fs = Math.round(W * (W < 1500 ? 0.058 : 0.041));
+  x.font = `700 ${fs}px "Cabin Sketch"`;
   x.textAlign = 'center';
   x.textBaseline = 'middle';
-  x.fillText('THEY WERE HERE ∗', W / 2, 88);
+  const header = 'THEY WERE HERE ∗';
+  const hw = x.measureText(header).width;
+  x.fillStyle = 'rgba(255,227,77,0.9)';
+  x.fillRect(W / 2 - hw / 2 - 20, fs * 0.75, hw + 40, fs * 0.62);
+  x.fillStyle = '#2b2b2b';
+  x.fillText(header, W / 2, fs * 1.05);
   x.restore();
   if (wallTexture) wallTexture.needsUpdate = true;
   const counter = document.getElementById('wall-count');
@@ -669,10 +688,12 @@ function drawWall() {
 }
 
 function buildWall() {
-  wallCanvas = makeCanvas(2048, 1024);
+  const spec = wallSpec();
+  wallNarrow = camera.aspect < 0.8;
+  wallCanvas = makeCanvas(spec.canvasW, spec.canvasH);
   wallTexture = canvasTexture(wallCanvas);
   wallMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(18, 9),
+    new THREE.PlaneGeometry(spec.w, spec.h),
     new THREE.MeshBasicMaterial({ map: wallTexture })
   );
   wallMesh.position.set(0, 0.6, zOf(3) - 2);
@@ -683,13 +704,36 @@ function buildWall() {
   layoutWall();
 }
 
+// tear the page down and rebuild it in the other orientation
+function rebuildWall() {
+  if (!wallMesh) return;
+  scene.remove(wallMesh);
+  wallMesh.geometry.dispose();
+  wallMesh.material.map.dispose();
+  wallMesh.material.dispose();
+  noteMeshes.forEach((m) => {
+    m.geometry.dispose();
+    m.material.map.dispose();
+    m.material.dispose();
+  });
+  noteMeshes.length = 0;
+  flyingNotes.length = 0;
+  hoverNote = null;
+  buildWall();
+}
+
 function layoutWall() {
   if (!wallMesh) return;
-  // fit wall width to the viewport at its viewing distance
+  // fit the page inside the viewport at its viewing distance
+  const spec = wallSpec();
   const dist = CAM_DIST - 2; // wall sits 2 units past the stop
-  const visW = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
-  const s = THREE.MathUtils.clamp((visW * 0.96) / 18, 0.32, 1);
+  const half = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const visW = 2 * half * camera.aspect;
+  const visH = 2 * half;
+  const s = Math.min((visW * 0.96) / spec.w, (visH * 0.82) / spec.h, 1);
   wallMesh.scale.setScalar(s);
+  // sit a little higher on phones so the wall UI below stays clear
+  wallMesh.position.y = camera.aspect < 0.8 ? 1.2 : 0.6;
 }
 
 /* ---------------- CONTACT : paper sculpture knot ---------------- */
@@ -981,7 +1025,9 @@ function onResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   layoutFolders();
-  layoutWall();
+  // crossing the phone/desktop threshold reshapes the whole page
+  if (wallMesh && (camera.aspect < 0.8) !== wallNarrow) rebuildWall();
+  else layoutWall();
   if (cd) cd.scale.setScalar(camera.aspect < 0.8 ? 0.62 : 1);
   if (polaroid) {
     if (camera.aspect < 0.8) {
