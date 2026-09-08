@@ -1,72 +1,164 @@
-# ENESI'S SPACE — 3D portfolio
+# Enesi's Space
 
-A retro-modern 3D portfolio built with Three.js + Vite.
-Scroll / swipe to fly through five stops: HELLO → ABOUT → THE FILES → THE WALL → CONTACT.
+A retro-modern 3D portfolio featuring an interactive sketchbook aesthetic, built with Three.js and Vite.
 
-## Run it
+**[Live Demo →](https://enesispace.vercel.app/)**
+
+---
+
+## Overview
+
+Enesi's Space is an immersive portfolio experience that combines hand-drawn aesthetics with modern web technologies. Visitors navigate through five distinct sections using scroll or swipe gestures, exploring projects through interactive 3D folder metaphors and leaving notes on a shared community wall.
+
+## Features
+
+- **3D Navigation** — Smooth camera movement through five themed sections
+- **Interactive Project Folders** — Click to explore detailed project case studies
+- **Community Wall** — Real-time sticky notes shared across all visitors via Firebase
+- **Responsive Design** — Optimized layouts for both desktop and mobile devices
+- **Sketchbook Aesthetic** — Hand-drawn textures, paper grain, and pencil-sketch styling
+
+## Tech Stack
+
+| Category | Technologies |
+|----------|-------------|
+| **3D Graphics** | Three.js |
+| **Build Tool** | Vite |
+| **Backend** | Firebase Firestore (real-time wall) |
+| **Hosting** | Vercel |
+| **Analytics** | Vercel Analytics |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/Jedidiah5/reactive-portfolio.git
+cd reactive-portfolio
+
+# Install dependencies
 npm install
-npm run dev      # local dev at http://localhost:5173
-npm run build    # production build into /dist
+
+# Start development server
+npm run dev
 ```
 
-Deploy: push to GitHub and import into Vercel (framework preset: Vite). Zero config needed.
+The development server runs at `http://localhost:5173`.
 
-## Add real project screenshots
+### Production Build
 
-Drop PNGs into `public/shots/` named by slug (see `public/shots/README.txt`).
-They automatically replace the generated placeholders in the folder popups.
+```bash
+npm run build    # Outputs to /dist
+npm run preview  # Preview the production build locally
+```
 
-## Your CV
+## Deployment
 
-The "FULL CV ↗" button (contact section) and the "check out my full CV →"
-link (about card) both point to `/cv.pdf` — drop your CV into
-`public/cv.pdf` and they'll work. Until then they 404.
+Deploy to Vercel with zero configuration:
 
-## Edit your info
+1. Push to GitHub
+2. Import the repository in [Vercel](https://vercel.com)
+3. Select **Vite** as the framework preset
+4. Deploy
 
-All project/profile content lives at the top of `src/main.js` in the `PROJECTS`
-array, and the about/contact text is plain HTML in `index.html`.
+## Customization
 
-## The Wall (shared via Firebase)
+### Project Content
 
-Sticky notes are stored in Firestore so every visitor sees everyone's notes.
-The wiring is in `src/wall-store.js` (plain REST, no SDK). Until the config
-is filled in — or if the network fails — the wall silently falls back to
-localStorage, so it can never break the site.
+Edit the `PROJECTS` array in `src/main.js` to update portfolio entries:
 
-One-time setup:
+```javascript
+{
+  slug: 'project-name',
+  title: 'Project Title',
+  goal: 'Project description...',
+  stack: ['Tech', 'Stack', 'Here'],
+  links: [{ label: 'LIVE ↗', url: 'https://...' }],
+  // ...
+}
+```
 
-1. Go to https://console.firebase.google.com → **Add project** (no Analytics
-   needed).
-2. **Build → Firestore Database → Create database** → production mode, any
-   region.
-3. In Firestore's **Rules** tab, paste and publish:
+### Screenshots
 
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /wall-notes/{note} {
-         allow read: if true;
-         allow create: if request.resource.data.keys().hasOnly(['x', 'c', 't'])
-           && request.resource.data.x is string
-           && request.resource.data.x.size() > 0
-           && request.resource.data.x.size() <= 100
-           && request.resource.data.c is int
-           && request.resource.data.c >= 0
-           && request.resource.data.c <= 2
-           && request.resource.data.t is int;
-         allow update, delete: if false;
-       }
-     }
-   }
-   ```
+Add project screenshots to `public/shots/` using the project slug as the filename:
 
-   (Anyone can read and add a valid note; nobody can edit or delete one.)
-4. **Project settings → General → Your apps → Add app → Web** — you don't
-   need any of the SDK snippet, just copy `projectId` and `apiKey` into
-   `FIREBASE` at the top of `src/wall-store.js`. These two values are public
-   by design; the rules above are what protect the data.
-5. Push — done. Notes now land in the `wall-notes` collection for everyone.
+```
+public/shots/cheerz.png
+public/shots/zonein.png
+```
+
+These automatically replace the generated placeholders in project modals.
+
+### Profile & Contact
+
+Update personal information directly in `index.html` within the relevant section elements.
+
+### CV/Resume
+
+Place your CV at `public/cv.pdf` to enable the download buttons throughout the site.
+
+## Firebase Wall Setup
+
+The community sticky-note wall uses Firestore for real-time synchronization. The implementation gracefully falls back to localStorage if Firebase is unavailable.
+
+### Configuration
+
+1. Create a project at [Firebase Console](https://console.firebase.google.com)
+2. Enable **Firestore Database** in production mode
+3. Configure security rules:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /wall-notes/{note} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['x', 'c', 't'])
+        && request.resource.data.x is string
+        && request.resource.data.x.size() > 0
+        && request.resource.data.x.size() <= 100
+        && request.resource.data.c is int
+        && request.resource.data.c >= 0
+        && request.resource.data.c <= 2
+        && request.resource.data.t is int;
+      allow update, delete: if false;
+    }
+  }
+}
+```
+
+4. Add your `projectId` and `apiKey` to the `FIREBASE` config in `src/wall-store.js`
+
+> **Note:** These credentials are intentionally public. The security rules above protect the data by allowing only valid note creation and preventing modifications.
+
+## Project Structure
+
+```
+├── public/
+│   ├── shots/          # Project screenshots
+│   └── cv.pdf          # Downloadable CV
+├── src/
+│   ├── main.js         # Three.js scene, navigation, project data
+│   ├── style.css       # Styling and animations
+│   └── wall-store.js   # Firebase wall integration
+├── index.html          # Main HTML structure
+└── package.json
+```
+
+## License
+
+This project is available for personal portfolio use.
+
+## Author
+
+**Jedidiah Onotu** — Full-Stack & AI Software Engineer
+
+- [Portfolio](https://enesispace.vercel.app/)
+- [GitHub](https://github.com/Jedidiah5)
+- [LinkedIn](https://www.linkedin.com/in/jedidiah-onotu)
