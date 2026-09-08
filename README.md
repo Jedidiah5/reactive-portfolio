@@ -2,7 +2,7 @@
 
 A retro-modern 3D portfolio featuring an interactive sketchbook aesthetic, built with Three.js and Vite.
 
-**[Live Demo →](https://enesispace.vercel.app/)**
+**[Live Demo →](https://enesi.space/)**
 
 ---
 
@@ -159,6 +159,6 @@ This project is available for personal portfolio use.
 
 **Jedidiah Onotu** — Full-Stack & AI Software Engineer
 
-- [Portfolio](https://enesispace.vercel.app/)
+- [Portfolio](https://enesi.space/)
 - [GitHub](https://github.com/Jedidiah5)
 - [LinkedIn](https://www.linkedin.com/in/jedidiah-onotu)
