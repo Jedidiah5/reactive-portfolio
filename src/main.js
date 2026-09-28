@@ -35,8 +35,25 @@ const PROJECTS = [
     hue: '#ffe34d',
   },
   {
-    slug: 'kira',
+    slug: 'happy-borough',
     file: 'FILE_02',
+    title: 'HappyBorough London',
+    short: 'HAPPY\nBOROUGH',
+    badge: '★ WINNER',
+    status: 'LIVE',
+    goal: "Ranks London's 33 boroughs by what matters to you — safety, green space, transport, well-being, housing access and affordability — using ONS, IMD 2025, GLA rent and live UK Police data.",
+    role: 'Role: joined Nash and Faris mid-build and redesigned the front end in Three.js — each borough is a 3D tower whose height reflects your priorities, sliders re-rank the city instantly in the browser, and detail cards show the underlying data with estimated values clearly flagged.',
+    impact: 'Winner — House London #2.',
+    stack: ['Three.js', 'JavaScript', 'Python', 'Open data'],
+    links: [
+      { label: 'LIVE ↗', url: 'https://happy-borough.vercel.app/' },
+      { label: 'CODE ↗', url: 'https://github.com/Jedidiah5/Happy_borough' },
+    ],
+    hue: '#8fe3cf',
+  },
+  {
+    slug: 'kira',
+    file: 'FILE_03',
     title: 'Kira',
     short: 'KIRA',
     badge: '★ FRONTLINE',
@@ -53,7 +70,7 @@ const PROJECTS = [
   },
   {
     slug: 'zonein',
-    file: 'FILE_03',
+    file: 'FILE_04',
     title: 'ZoneIn',
     short: 'ZONE\nIN',
     badge: '★ VALIDATED',
@@ -67,7 +84,7 @@ const PROJECTS = [
   },
   {
     slug: 'urban-lens',
-    file: 'FILE_04',
+    file: 'FILE_05',
     title: 'Urban Lens',
     short: 'URBAN\nLENS',
     badge: '★ 2ND PLACE',
@@ -84,7 +101,7 @@ const PROJECTS = [
   },
   {
     slug: 'loop-house',
-    file: 'FILE_05',
+    file: 'FILE_06',
     title: 'Loop House',
     short: 'LOOP\nHOUSE',
     status: 'HACKATHON BUILD',
@@ -96,7 +113,7 @@ const PROJECTS = [
   },
   {
     slug: 'torque',
-    file: 'FILE_06',
+    file: 'FILE_07',
     title: 'Torque',
     short: 'TORQUE',
     status: 'HACKATHON BUILD',
@@ -447,28 +464,34 @@ function layoutFolders() {
   const narrow = camera.aspect < 0.8;
   // half of the visible width at the folders' depth
   const halfW = CAM_DIST * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+  const n = folders.length;
   if (narrow) {
-    // 2 columns x 3 rows, sized from what actually fits on this phone
-    folderScale = THREE.MathUtils.clamp(halfW / 4.8, 0.45, 0.8);
+    // 2 columns, sized from what actually fits on this phone; an odd last folder is centred
+    const rows = Math.ceil(n / 2);
+    const maxScale = rows > 3 ? 0.7 : 0.8;
+    folderScale = THREE.MathUtils.clamp(halfW / 4.8, 0.45, maxScale);
     const colX = halfW * 0.46;
-    const posn = [
-      [-colX, 2.5], [colX, 2.5],
-      [-colX, 0.1], [colX, 0.1],
-      [-colX, -2.3], [colX, -2.3],
-    ];
+    const rowGap = rows > 3 ? 2.95 * folderScale : 2.4;
     folders.forEach((f, i) => {
-      f.position.set(posn[i][0], posn[i][1], 0);
+      const row = Math.floor(i / 2);
+      const alone = i === n - 1 && n % 2 === 1;
+      const x = alone ? 0 : (i % 2 === 0 ? -colX : colX);
+      f.position.set(x, 2.5 - row * rowGap, 0);
       f.scale.setScalar(folderScale);
     });
   } else {
-    folderScale = 1;
-    const posn = [
-      [-4.3, 1.4], [0, 1.4], [4.3, 1.4],
-      [-4.3, -1.6], [0, -1.6], [4.3, -1.6],
-    ];
+    // two rows, the top one takes the extra folder; each row is centred
+    const topCount = Math.ceil(n / 2);
+    const spacing = 4.3;
+    const spanHalf = ((topCount - 1) * spacing) / 2 + 2.0;
+    folderScale = Math.min(1, halfW / spanHalf);
     folders.forEach((f, i) => {
-      f.position.set(posn[i][0], posn[i][1], 0);
-      f.scale.setScalar(1);
+      const top = i < topCount;
+      const count = top ? topCount : n - topCount;
+      const idx = top ? i : i - topCount;
+      const x = (idx - (count - 1) / 2) * spacing * folderScale;
+      f.position.set(x, top ? 1.1 : -1.9, 0);
+      f.scale.setScalar(folderScale);
     });
   }
 }
