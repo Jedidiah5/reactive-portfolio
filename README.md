@@ -127,7 +127,9 @@ service cloud.firestore {
         && request.resource.data.c >= 0
         && request.resource.data.c <= 2
         && request.resource.data.t is int;
-      allow update, delete: if false;
+      allow update: if false;
+      // only the site owner's Firebase Auth account can remove notes
+      allow delete: if request.auth != null && request.auth.uid == 'YOUR_OWNER_UID';
     }
   }
 }
@@ -135,7 +137,16 @@ service cloud.firestore {
 
 4. Add your `projectId` and `apiKey` to the `FIREBASE` config in `src/wall-store.js`
 
-> **Note:** These credentials are intentionally public. The security rules above protect the data by allowing only valid note creation and preventing modifications.
+> **Note:** These credentials are intentionally public. The security rules above protect the data by allowing only valid note creation, blocking edits, and letting only the owner delete.
+
+### Removing notes (owner only)
+
+1. In Firebase Console → **Authentication** → **Sign-in method**, enable **Email/Password**
+2. **Authentication** → **Users** → **Add user** with your email and a strong password, then copy the **User UID**
+3. Replace `YOUR_OWNER_UID` in the rules above with that UID and publish the rules
+4. Visit `https://enesi.space/?owner`, sign in, then open any note on the wall and press **Remove note**
+
+The sign-in stays saved in that browser until you sign out (visit `?owner` again).
 
 ## Project Structure
 

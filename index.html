@@ -191,6 +191,32 @@
       </div>
       <div class="window-body">
         <div class="bignote" id="bignote"></div>
+        <div class="sign-row owner-row" id="note-owner-row" hidden>
+          <span class="owner-status" id="note-owner-status"></span>
+          <button id="note-delete" class="btn-spray btn-danger">REMOVE NOTE ✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OWNER SIGN-IN (opened via ?owner) ===== -->
+  <div id="owner" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="window window-small ui-block">
+      <div class="window-bar">
+        <span class="window-dots"><i></i><i></i><i></i></span>
+        <span class="window-name">OWNER.TXT</span>
+        <button class="window-close" id="owner-close" aria-label="close">✕</button>
+      </div>
+      <div class="window-body">
+        <form id="owner-form">
+          <p class="sign-label" id="owner-label">owner sign-in</p>
+          <input class="owner-input" id="owner-email" type="email" autocomplete="username" placeholder="email" />
+          <input class="owner-input" id="owner-pass" type="password" autocomplete="current-password" placeholder="password" />
+          <div class="sign-row">
+            <span class="owner-status" id="owner-status"></span>
+            <button type="submit" id="owner-submit" class="btn-spray">SIGN IN</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

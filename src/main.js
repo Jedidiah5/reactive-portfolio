@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { wallIsShared, fetchNotes, pushNote } from './wall-store.js';
+import {
+  wallIsShared, fetchNotes, pushNote,
+  isOwner, ownerSignIn, ownerSignOut, deleteNote,
+} from './wall-store.js';
 import { inject } from '@vercel/analytics';
 
 inject();
@@ -652,21 +655,112 @@ function addNoteAnimated(entry, i) {
 
 /* ---- read a note ---- */
 const noteViewEl = document.getElementById('note-view');
+const noteOwnerRow = document.getElementById('note-owner-row');
+const noteOwnerStatus = document.getElementById('note-owner-status');
+const noteDeleteBtn = document.getElementById('note-delete');
+let viewingNote = -1;
 function openNoteView(i) {
   const e = wallEntries[i];
   if (!e) return;
+  viewingNote = i;
   const big = document.getElementById('bignote');
   big.textContent = e.x;
   big.style.background = NOTE_COLORS[e.c % 3];
+  // only notes saved to the shared wall have an id the database can delete
+  noteOwnerRow.hidden = !(isOwner() && e.id);
+  noteOwnerStatus.textContent = '';
+  noteDeleteBtn.disabled = false;
   noteViewEl.classList.remove('hidden');
   modalOpen = true;
 }
 function closeNoteView() {
   noteViewEl.classList.add('hidden');
   modalOpen = false;
+  viewingNote = -1;
 }
 document.getElementById('note-close').addEventListener('click', closeNoteView);
 noteViewEl.addEventListener('click', (e) => { if (e.target === noteViewEl) closeNoteView(); });
+
+noteDeleteBtn.addEventListener('click', async () => {
+  const entry = wallEntries[viewingNote];
+  if (!entry || !entry.id) return;
+  if (!window.confirm('Remove this note from the wall for everyone?')) return;
+  noteDeleteBtn.disabled = true;
+  noteOwnerStatus.textContent = 'REMOVING…';
+  try {
+    await deleteNote(entry.id);
+    wallEntries = wallEntries.filter((e) => e !== entry);
+    saveWallEntries();
+    closeNoteView();
+    rebuildWall();
+  } catch (err) {
+    noteDeleteBtn.disabled = false;
+    noteOwnerStatus.textContent = err.message === 'not allowed'
+      ? 'NOT ALLOWED — CHECK RULES'
+      : err.message === 'session expired' ? 'SIGNED OUT — SIGN IN AGAIN' : 'FAILED — TRY AGAIN';
+    if (!isOwner()) noteOwnerRow.hidden = true;
+  }
+});
+
+/* ---- owner sign-in, opened by visiting /?owner ---- */
+const ownerEl = document.getElementById('owner');
+const ownerForm = document.getElementById('owner-form');
+const ownerEmail = document.getElementById('owner-email');
+const ownerPass = document.getElementById('owner-pass');
+const ownerStatus = document.getElementById('owner-status');
+const ownerSubmit = document.getElementById('owner-submit');
+const ownerLabel = document.getElementById('owner-label');
+
+function renderOwnerForm() {
+  const signedIn = isOwner();
+  ownerEmail.hidden = signedIn;
+  ownerPass.hidden = signedIn;
+  ownerLabel.textContent = signedIn
+    ? "you're signed in — open any note on the wall to remove it."
+    : 'owner sign-in';
+  ownerSubmit.textContent = signedIn ? 'SIGN OUT' : 'SIGN IN';
+  ownerStatus.textContent = '';
+}
+function openOwner() {
+  renderOwnerForm();
+  ownerEl.classList.remove('hidden');
+  modalOpen = true;
+  if (!isOwner()) setTimeout(() => ownerEmail.focus(), 80);
+}
+function closeOwner() {
+  ownerEl.classList.add('hidden');
+  modalOpen = false;
+  ownerPass.value = '';
+}
+document.getElementById('owner-close').addEventListener('click', closeOwner);
+ownerEl.addEventListener('click', (e) => { if (e.target === ownerEl) closeOwner(); });
+
+ownerForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (isOwner()) {
+    ownerSignOut();
+    renderOwnerForm();
+    return;
+  }
+  if (!ownerEmail.value || !ownerPass.value) return;
+  ownerSubmit.disabled = true;
+  ownerStatus.textContent = 'SIGNING IN…';
+  try {
+    await ownerSignIn(ownerEmail.value.trim(), ownerPass.value);
+    ownerPass.value = '';
+    closeOwner();
+    scrollTarget = 3; // straight to the wall
+  } catch (err) {
+    const code = String(err.message);
+    ownerStatus.textContent = code.startsWith('OPERATION_NOT_ALLOWED') || code.startsWith('CONFIGURATION_NOT_FOUND')
+      ? 'EMAIL SIGN-IN NOT ENABLED IN FIREBASE'
+      : code.startsWith('TOO_MANY_ATTEMPTS')
+        ? 'TOO MANY TRIES — WAIT A BIT'
+        : 'WRONG EMAIL OR PASSWORD';
+  } finally {
+    ownerSubmit.disabled = false;
+  }
+});
 
 function drawWall() {
   if (!wallCanvas) return;
@@ -836,7 +930,7 @@ window.addEventListener('touchmove', (e) => {
 // keyboard
 window.addEventListener('keydown', (e) => {
   if (modalOpen) {
-    if (e.key === 'Escape') { closeModal(); closeSign(); closeNoteView(); }
+    if (e.key === 'Escape') { closeModal(); closeSign(); closeNoteView(); closeOwner(); }
     // arrows browse projects only when the project window itself is open
     if (!modalEl.classList.contains('hidden')) {
       if (e.key === 'ArrowLeft') stepProject(-1);
@@ -1030,7 +1124,11 @@ function submitSignature() {
   wallEntries.push(entry);
   saveWallEntries();
   // share it with everyone; if the write fails the note still lives locally
-  if (sharedWall) pushNote(entry).catch(() => {});
+  if (sharedWall) {
+    pushNote(entry)
+      .then((id) => { entry.id = id; saveWallEntries(); })
+      .catch(() => {});
+  }
   addNoteAnimated(entry, wallEntries.length - 1);
   drawWall(); // refreshes the counter
   signInput.value = '';
@@ -1161,5 +1259,13 @@ async function boot() {
 
   const loader = document.getElementById('loader');
   setTimeout(() => loader.classList.add('done'), 500);
+
+  const params = new URLSearchParams(location.search);
+  if (params.has('owner')) {
+    params.delete('owner');
+    const qs = params.toString();
+    history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+    setTimeout(openOwner, 600);
+  }
 }
 boot();
