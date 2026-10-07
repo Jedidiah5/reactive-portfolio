@@ -94,7 +94,7 @@ export function ownerSignOut() {
   saveSession(null);
 }
 
-async function idToken() {
+export async function idToken() {
   if (!session) throw new Error('not signed in');
   if (Date.now() < session.expiresAt - 60_000) return session.idToken;
   const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE.apiKey}`, {

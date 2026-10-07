@@ -15,6 +15,7 @@ Enesi's Space is an immersive portfolio experience that combines hand-drawn aest
 - **3D Navigation** — Smooth camera movement through five themed sections
 - **Interactive Project Folders** — Click to explore detailed project case studies
 - **Community Wall** — Real-time sticky notes shared across all visitors via Firebase
+- **Stats Dashboard** — Owner-only, in-site analytics at `/?stats`
 - **Responsive Design** — Optimized layouts for both desktop and mobile devices
 - **Sketchbook Aesthetic** — Hand-drawn textures, paper grain, and pencil-sketch styling
 
@@ -26,7 +27,7 @@ Enesi's Space is an immersive portfolio experience that combines hand-drawn aest
 | **Build Tool** | Vite |
 | **Backend** | Firebase Firestore (real-time wall) |
 | **Hosting** | Vercel |
-| **Analytics** | Vercel Analytics |
+| **Analytics** | Vercel Analytics + in-site stats dashboard (Firestore) |
 
 ## Getting Started
 
@@ -134,6 +135,32 @@ service cloud.firestore {
       // ... or delete them
       allow delete: if request.auth != null && request.auth.uid == 'YOUR_OWNER_UID';
     }
+
+    // visit analytics: anyone can log a visit and top up its engagement numbers,
+    // only the owner can read them (powers the in-site stats dashboard)
+    function validEngagement() {
+      let d = request.resource.data;
+      return d.d is int && d.d >= 0 && d.d <= 86400
+        && d.s is int && d.s >= 0 && d.s <= 4
+        && d.p is string && d.p.size() <= 400
+        && d.l is string && d.l.size() <= 400
+        && d.nt is int && d.nt >= 0 && d.nt <= 50;
+    }
+    match /visits/{visit} {
+      allow create: if request.resource.data.keys().hasOnly(['t', 'v', 'n', 'r', 'dv', 'tz', 'lg', 'w', 'd', 's', 'p', 'l', 'nt'])
+        && request.resource.data.t is int
+        && request.resource.data.v is string && request.resource.data.v.size() <= 40
+        && request.resource.data.n is bool
+        && request.resource.data.r is string && request.resource.data.r.size() <= 100
+        && request.resource.data.dv in ['mobile', 'tablet', 'desktop']
+        && request.resource.data.tz is string && request.resource.data.tz.size() <= 50
+        && request.resource.data.lg is string && request.resource.data.lg.size() <= 20
+        && request.resource.data.w is int
+        && validEngagement();
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['d', 's', 'p', 'l', 'nt'])
+        && validEngagement();
+      allow read: if request.auth != null && request.auth.uid == 'YOUR_OWNER_UID';
+    }
   }
 }
 ```
@@ -153,6 +180,20 @@ service cloud.firestore {
 
 The sign-in stays saved in that browser until you sign out (visit `?owner` again).
 
+### Stats dashboard (owner only)
+
+Visit `https://enesi.space/?stats` (or press **STATS** in the owner window). It shows, for the last 7, 30 or 90 days:
+
+- visits, unique visitors, average time on site and how many reached the contact section
+- visits per day
+- how far people scroll, which project files they open and which links they click
+- where they came from (referrer or `?ref=` / `?utm_source=` tag), devices and time zones
+- the latest visits
+
+How it's collected: one Firestore document per page load in `visits` (`src/analytics.js`). No cookies, IP addresses or personal data — just a random visitor id in localStorage so returning visitors can be counted. Visits from the owner, from `localhost` (unless the URL has `?track`), and from browsers sending Do Not Track / Global Privacy Control are never recorded.
+
+Tip: share tagged links like `https://enesi.space/?ref=cv` or `?ref=linkedin-post` to see which ones bring people in.
+
 ## Project Structure
 
 ```
@@ -162,7 +203,9 @@ The sign-in stays saved in that browser until you sign out (visit `?owner` again
 ├── src/
 │   ├── main.js         # Three.js scene, navigation, project data
 │   ├── style.css       # Styling and animations
-│   └── wall-store.js   # Firebase wall integration
+│   ├── wall-store.js   # Firebase wall integration + owner sign-in
+│   ├── analytics.js    # Visit tracking (Firestore `visits`)
+│   └── stats.js        # Owner-only stats dashboard
 ├── index.html          # Main HTML structure
 └── package.json
 ```

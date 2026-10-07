@@ -3,9 +3,12 @@ import {
   wallIsShared, fetchNotes, pushNote,
   isOwner, ownerSignIn, ownerSignOut, deleteNote, setNoteHidden,
 } from './wall-store.js';
+import { startTracking, stopTracking, trackSection, trackProject, trackNote } from './analytics.js';
+import { createStats } from './stats.js';
 import { inject } from '@vercel/analytics';
 
 inject();
+startTracking(isOwner());
 
 /* ============================================================
    ENESI'S SPACE — a 3D retro-modern portfolio
@@ -765,12 +768,16 @@ const ownerStatus = document.getElementById('owner-status');
 const ownerSubmit = document.getElementById('owner-submit');
 const ownerLabel = document.getElementById('owner-label');
 
+const ownerStatsBtn = document.getElementById('owner-stats');
+let statsAfterSignIn = false;
+
 function renderOwnerForm() {
   const signedIn = isOwner();
   ownerEmail.hidden = signedIn;
   ownerPass.hidden = signedIn;
+  ownerStatsBtn.hidden = !signedIn;
   ownerLabel.textContent = signedIn
-    ? "you're signed in — open any note on the wall to hide or delete it."
+    ? "you're signed in — open any note on the wall to hide or delete it, or check your stats."
     : 'owner sign-in';
   ownerSubmit.textContent = signedIn ? 'SIGN OUT' : 'SIGN IN';
   ownerStatus.textContent = '';
@@ -789,6 +796,16 @@ function closeOwner() {
 document.getElementById('owner-close').addEventListener('click', closeOwner);
 ownerEl.addEventListener('click', (e) => { if (e.target === ownerEl) closeOwner(); });
 
+const stats = createStats({
+  projects: PROJECTS,
+  onOpen: () => { modalOpen = true; },
+  onClose: () => { modalOpen = false; },
+});
+ownerStatsBtn.addEventListener('click', () => {
+  closeOwner();
+  stats.open();
+});
+
 ownerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (isOwner()) {
@@ -803,11 +820,17 @@ ownerForm.addEventListener('submit', async (e) => {
   ownerStatus.textContent = 'SIGNING IN…';
   try {
     await ownerSignIn(ownerEmail.value.trim(), ownerPass.value);
+    stopTracking();
     ownerPass.value = '';
     closeOwner();
     refreshVisibleEntries();
     rebuildWall();
-    scrollTarget = 3; // straight to the wall
+    if (statsAfterSignIn) {
+      statsAfterSignIn = false;
+      stats.open();
+    } else {
+      scrollTarget = 3; // straight to the wall
+    }
   } catch (err) {
     const code = String(err.message);
     ownerStatus.textContent = code.startsWith('OPERATION_NOT_ALLOWED') || code.startsWith('CONFIGURATION_NOT_FOUND')
@@ -994,7 +1017,7 @@ window.addEventListener('touchmove', (e) => {
 // keyboard
 window.addEventListener('keydown', (e) => {
   if (modalOpen) {
-    if (e.key === 'Escape') { closeModal(); closeSign(); closeNoteView(); closeOwner(); }
+    if (e.key === 'Escape') { closeModal(); closeSign(); closeNoteView(); closeOwner(); stats.close(); }
     // arrows browse projects only when the project window itself is open
     if (!modalEl.classList.contains('hidden')) {
       if (e.key === 'ArrowLeft') stepProject(-1);
@@ -1027,6 +1050,7 @@ function updateOverlays() {
   });
   const active = Math.round(scrollCurrent);
   navBtns.forEach((b, i) => b.classList.toggle('active', i === active));
+  trackSection(active);
 }
 
 /* ---------------- pointer: parallax + folder picking ---------------- */
@@ -1126,7 +1150,7 @@ function openModal(i) {
   document.getElementById('modal-stack').innerHTML =
     p.stack.map((s) => `<span>${s}</span>`).join('');
   document.getElementById('modal-links').innerHTML =
-    p.links.map((l) => `<a class="paper-btn" href="${l.url}" target="_blank" rel="noreferrer">${l.label}</a>`).join('');
+    p.links.map((l) => `<a class="paper-btn" href="${l.url}" target="_blank" rel="noreferrer" data-track="${p.slug}:${l.label.replace(/[^A-Za-z]/g, '').toLowerCase()}">${l.label}</a>`).join('');
   document.getElementById('modal-index').textContent = `${i + 1} / ${PROJECTS.length}`;
   const shot = document.getElementById('modal-shot');
   shot.innerHTML = shotPlaceholder(p);
@@ -1136,6 +1160,7 @@ function openModal(i) {
   img.src = `/shots/${p.slug}.png`;
   modalEl.classList.remove('hidden');
   modalOpen = true;
+  trackProject(p.slug);
 }
 function closeModal() {
   modalEl.classList.add('hidden');
@@ -1195,6 +1220,7 @@ function submitSignature() {
       .catch(() => {});
   }
   addNoteAnimated(entry, wallEntries.length - 1);
+  trackNote();
   drawWall(); // refreshes the counter
   signInput.value = '';
   charCount.textContent = `0 / ${NOTE_LIMIT}`;
@@ -1327,11 +1353,20 @@ async function boot() {
   setTimeout(() => loader.classList.add('done'), 500);
 
   const params = new URLSearchParams(location.search);
-  if (params.has('owner')) {
+  if (params.has('owner') || params.has('stats')) {
+    const wantsStats = params.has('stats');
     params.delete('owner');
+    params.delete('stats');
     const qs = params.toString();
     history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
-    setTimeout(openOwner, 600);
+    setTimeout(() => {
+      if (wantsStats && isOwner()) {
+        stats.open();
+      } else {
+        statsAfterSignIn = wantsStats;
+        openOwner();
+      }
+    }, 600);
   }
 }
 boot();
