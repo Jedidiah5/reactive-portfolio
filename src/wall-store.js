@@ -26,6 +26,7 @@ export async function fetchNotes() {
       x: (d.fields && d.fields.x && d.fields.x.stringValue) || '',
       c: Number((d.fields && d.fields.c && d.fields.c.integerValue) || 0),
       t: Number((d.fields && d.fields.t && d.fields.t.integerValue) || 0),
+      h: Boolean(d.fields && d.fields.h && d.fields.h.booleanValue),
     }))
     .filter((e) => e.x)
     .sort((a, b) => a.t - b.t);
@@ -113,6 +114,20 @@ async function idToken() {
     expiresAt: Date.now() + Number(data.expires_in) * 1000,
   });
   return session.idToken;
+}
+
+export async function setNoteHidden(id, hidden) {
+  const token = await idToken();
+  const url = `${base()}/${encodeURIComponent(id)}`
+    + `?updateMask.fieldPaths=h&currentDocument.exists=true&key=${FIREBASE.apiKey}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { h: { booleanValue: hidden } } }),
+    signal: AbortSignal.timeout(6000),
+  });
+  if (res.status === 401 || res.status === 403) throw new Error('not allowed');
+  if (!res.ok) throw new Error(`firestore update ${res.status}`);
 }
 
 export async function deleteNote(id) {

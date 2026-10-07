@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   wallIsShared, fetchNotes, pushNote,
-  isOwner, ownerSignIn, ownerSignOut, deleteNote,
+  isOwner, ownerSignIn, ownerSignOut, deleteNote, setNoteHidden,
 } from './wall-store.js';
 import { inject } from '@vercel/analytics';
 
@@ -523,11 +523,17 @@ function loadWallEntries() {
     { x: 'CLAUDE stuck this one', c: 1, t: 2 },
   ];
 }
-let wallEntries = loadWallEntries();
+let allEntries = loadWallEntries();
+// what's on the wall: visitors never see hidden notes; the owner sees them faded
+let wallEntries = [];
+function refreshVisibleEntries() {
+  wallEntries = isOwner() ? allEntries.slice() : allEntries.filter((e) => !e.h);
+}
+refreshVisibleEntries();
 let sharedWall = false; // true once notes are coming from Firestore
 
 function saveWallEntries() {
-  try { localStorage.setItem(WALL_KEY, JSON.stringify(wallEntries)); } catch (e) { /* full */ }
+  try { localStorage.setItem(WALL_KEY, JSON.stringify(allEntries)); } catch (e) { /* full */ }
 }
 
 // deterministic pseudo-random from a string, so entries land in the
@@ -615,6 +621,22 @@ function noteTexture(entry) {
   x.font = '30px "Patrick Hand"';
   const lines = wrapNote(x, entry.x, 208, 5);
   lines.forEach((ln, i) => x.fillText(ln, 22, 58 + i * 38));
+  if (entry.h) {
+    // only the owner ever sees hidden notes — wash them out and stamp them
+    x.fillStyle = 'rgba(244,241,232,0.62)';
+    x.fillRect(0, 0, 256, 256);
+    x.save();
+    x.translate(128, 140);
+    x.rotate(-0.22);
+    x.strokeStyle = '#e0501f';
+    x.lineWidth = 6;
+    x.strokeRect(-92, -30, 184, 60);
+    x.fillStyle = '#e0501f';
+    x.font = '700 40px "Caveat"';
+    x.textAlign = 'center';
+    x.fillText('HIDDEN', 0, 13);
+    x.restore();
+  }
   return canvasTexture(c);
 }
 
@@ -658,7 +680,16 @@ const noteViewEl = document.getElementById('note-view');
 const noteOwnerRow = document.getElementById('note-owner-row');
 const noteOwnerStatus = document.getElementById('note-owner-status');
 const noteDeleteBtn = document.getElementById('note-delete');
+const noteHideBtn = document.getElementById('note-hide');
 let viewingNote = -1;
+function renderNoteOwnerRow(e) {
+  // only notes saved to the shared wall have an id the database can change
+  noteOwnerRow.hidden = !(isOwner() && e.id);
+  noteOwnerStatus.textContent = e.h ? 'HIDDEN FROM VISITORS' : '';
+  noteHideBtn.textContent = e.h ? 'UNHIDE' : 'HIDE';
+  noteHideBtn.disabled = false;
+  noteDeleteBtn.disabled = false;
+}
 function openNoteView(i) {
   const e = wallEntries[i];
   if (!e) return;
@@ -666,12 +697,14 @@ function openNoteView(i) {
   const big = document.getElementById('bignote');
   big.textContent = e.x;
   big.style.background = NOTE_COLORS[e.c % 3];
-  // only notes saved to the shared wall have an id the database can delete
-  noteOwnerRow.hidden = !(isOwner() && e.id);
-  noteOwnerStatus.textContent = '';
-  noteDeleteBtn.disabled = false;
+  renderNoteOwnerRow(e);
   noteViewEl.classList.remove('hidden');
   modalOpen = true;
+}
+function ownerErrorText(err) {
+  if (err.message === 'not allowed') return 'NOT ALLOWED — CHECK RULES';
+  if (err.message === 'session expired') return 'SIGNED OUT — SIGN IN AGAIN';
+  return 'FAILED — TRY AGAIN';
 }
 function closeNoteView() {
   noteViewEl.classList.add('hidden');
@@ -681,23 +714,44 @@ function closeNoteView() {
 document.getElementById('note-close').addEventListener('click', closeNoteView);
 noteViewEl.addEventListener('click', (e) => { if (e.target === noteViewEl) closeNoteView(); });
 
+noteHideBtn.addEventListener('click', async () => {
+  const entry = wallEntries[viewingNote];
+  if (!entry || !entry.id) return;
+  const hide = !entry.h;
+  noteHideBtn.disabled = true;
+  noteDeleteBtn.disabled = true;
+  noteOwnerStatus.textContent = hide ? 'HIDING…' : 'UNHIDING…';
+  try {
+    await setNoteHidden(entry.id, hide);
+    entry.h = hide;
+    saveWallEntries();
+    closeNoteView();
+    refreshVisibleEntries();
+    rebuildWall();
+  } catch (err) {
+    renderNoteOwnerRow(entry);
+    noteOwnerStatus.textContent = ownerErrorText(err);
+    if (!isOwner()) noteOwnerRow.hidden = true;
+  }
+});
+
 noteDeleteBtn.addEventListener('click', async () => {
   const entry = wallEntries[viewingNote];
   if (!entry || !entry.id) return;
-  if (!window.confirm('Remove this note from the wall for everyone?')) return;
+  if (!window.confirm('Delete this note permanently for everyone?')) return;
+  noteHideBtn.disabled = true;
   noteDeleteBtn.disabled = true;
-  noteOwnerStatus.textContent = 'REMOVING…';
+  noteOwnerStatus.textContent = 'DELETING…';
   try {
     await deleteNote(entry.id);
-    wallEntries = wallEntries.filter((e) => e !== entry);
+    allEntries = allEntries.filter((e) => e !== entry);
     saveWallEntries();
     closeNoteView();
+    refreshVisibleEntries();
     rebuildWall();
   } catch (err) {
-    noteDeleteBtn.disabled = false;
-    noteOwnerStatus.textContent = err.message === 'not allowed'
-      ? 'NOT ALLOWED — CHECK RULES'
-      : err.message === 'session expired' ? 'SIGNED OUT — SIGN IN AGAIN' : 'FAILED — TRY AGAIN';
+    renderNoteOwnerRow(entry);
+    noteOwnerStatus.textContent = ownerErrorText(err);
     if (!isOwner()) noteOwnerRow.hidden = true;
   }
 });
@@ -716,7 +770,7 @@ function renderOwnerForm() {
   ownerEmail.hidden = signedIn;
   ownerPass.hidden = signedIn;
   ownerLabel.textContent = signedIn
-    ? "you're signed in — open any note on the wall to remove it."
+    ? "you're signed in — open any note on the wall to hide or delete it."
     : 'owner sign-in';
   ownerSubmit.textContent = signedIn ? 'SIGN OUT' : 'SIGN IN';
   ownerStatus.textContent = '';
@@ -740,6 +794,8 @@ ownerForm.addEventListener('submit', async (e) => {
   if (isOwner()) {
     ownerSignOut();
     renderOwnerForm();
+    refreshVisibleEntries();
+    rebuildWall();
     return;
   }
   if (!ownerEmail.value || !ownerPass.value) return;
@@ -749,6 +805,8 @@ ownerForm.addEventListener('submit', async (e) => {
     await ownerSignIn(ownerEmail.value.trim(), ownerPass.value);
     ownerPass.value = '';
     closeOwner();
+    refreshVisibleEntries();
+    rebuildWall();
     scrollTarget = 3; // straight to the wall
   } catch (err) {
     const code = String(err.message);
@@ -805,7 +863,13 @@ function drawWall() {
   x.restore();
   if (wallTexture) wallTexture.needsUpdate = true;
   const counter = document.getElementById('wall-count');
-  if (counter) counter.textContent = `${wallEntries.length} NOTES ON THE WALL`;
+  if (counter) {
+    const shown = allEntries.filter((e) => !e.h).length;
+    const hidden = allEntries.length - shown;
+    counter.textContent = isOwner() && hidden
+      ? `${shown} NOTES ON THE WALL ∗ ${hidden} HIDDEN`
+      : `${shown} NOTES ON THE WALL`;
+  }
 }
 
 function buildWall() {
@@ -1121,6 +1185,7 @@ function submitSignature() {
   const text = signInput.value.trim().slice(0, NOTE_LIMIT);
   if (!text) { signInput.focus(); return; }
   const entry = { x: text, c: noteColor, t: Date.now() };
+  allEntries.push(entry);
   wallEntries.push(entry);
   saveWallEntries();
   // share it with everyone; if the write fails the note still lives locally
@@ -1239,10 +1304,11 @@ async function boot() {
   const remote = wallIsShared()
     ? fetchNotes().then((notes) => {
         sharedWall = true;
-        if (notes.length) wallEntries = notes;
+        if (notes.length) allEntries = notes;
       }).catch(() => { /* offline or rules issue — local wall still works */ })
     : Promise.resolve();
   await Promise.all([fonts, remote]);
+  refreshVisibleEntries();
 
   let profilePhoto;
   try {
